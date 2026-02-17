@@ -299,6 +299,16 @@
                                         <td class="px-4 py-2 text-center">{{ $employee->employee->department }}</td>
                                         <td class="px-4 py-2 text-center">
                                             <div class="flex gap-2 justify-center">
+                                                {{-- Role Management Button --}}
+                                                <button onclick="openRoleModal(
+                                                    {{ $employee->user->id }},
+                                                    '{{ addslashes($employee->user->name) }}',
+                                                    '{{ $employee->user->role }}',
+                                                    '{{ addslashes($employee->department ?? '') }}'
+                                                )" class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 font-medium">
+                                                    Role: {{ ucfirst(str_replace('_', ' ', $employee->user->role)) }}
+                                                </button>
+
                                                 <button onclick="openEditModal({{ $employee->employee->id }}, '{{ $employee->name }}', '{{ $employee->employee->department }}', '{{ $employee->gender ?? '' }}', '{{ $employee->employee->hire_date ?? '' }}')" 
                                                         style="background-color:#3773B8" 
                                                         class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition">
@@ -621,5 +631,95 @@
             
             return false;
         }
+    </script>
+    {{-- Role Management Modal --}}
+    <div id="roleModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b">
+                <h3 class="text-lg font-semibold text-gray-900">Update Employee Role</h3>
+                <button onclick="closeRoleModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <p id="roleModalName" class="text-sm text-gray-600 mb-4 font-medium"></p>
+
+            <form id="roleForm" method="GET">
+                @csrf
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Role <span class="text-red-500">*</span>
+                        </label>
+                        <select id="roleSelect" name="role" required
+                                onchange="toggleHeadsDept(this.value)"
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300">
+                            <option value="user">User (Regular Employee)</option>
+                            <option value="assessor">Assessor (Head of Department)</option>
+                            <option value="managing_partner">Managing Partner</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+
+                    <div id="headsDeptDiv" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Heads Department <span class="text-red-500">*</span>
+                        </label>
+                        <select name="heads_department" id="headsDeptSelect"
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300">
+                            <option value="">Select Department</option>
+                            @foreach($departments as $dept)
+                                <option value="{{ $dept->name }}">{{ $dept->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">
+                            This person will assess all leave requests from this department.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 justify-end mt-6 pt-4 border-t">
+                    <button type="button" onclick="closeRoleModal()"
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md text-sm hover:bg-gray-400">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-semibold hover:bg-purple-700">
+                        Save Role
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openRoleModal(userId, userName, currentRole, currentDept) {
+            document.getElementById('roleModalName').textContent = 'Employee: ' + userName;
+            document.getElementById('roleForm').action = '/admin/manage-employee/role/' + userId;
+            document.getElementById('roleSelect').value = currentRole;
+            document.getElementById('headsDeptSelect').value = currentDept;
+            toggleHeadsDept(currentRole);
+            document.getElementById('roleModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeRoleModal() {
+            document.getElementById('roleModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        function toggleHeadsDept(role) {
+            const div = document.getElementById('headsDeptDiv');
+            if (role === 'assessor') {
+                div.classList.remove('hidden');
+                document.getElementById('headsDeptSelect').required = true;
+            } else {
+                div.classList.add('hidden');
+                document.getElementById('headsDeptSelect').required = false;
+            }
+        }
+        document.getElementById('roleModal').addEventListener('click', function(e) {
+            if (e.target === this) closeRoleModal();
+        });
     </script>
 </x-app-layout>

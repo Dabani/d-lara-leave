@@ -175,6 +175,18 @@
                     {{ __('Manage Leave') }}
                 </x-responsive-nav-link>
             @endif
+
+            {{-- Assessor / Managing Partner dashboard link --}}
+            @if(auth()->user()->isAssessor() || auth()->user()->isManagingPartner())
+                <x-nav-link :href="route('assessor.dashboard')"
+                            :active="request()->routeIs('assessor.*')">
+                    <svg class="w-4 h-4 mr-1 inline" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                        <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    Assessment
+                </x-nav-link>
+            @endif
         </div>
 
         <!-- Responsive Settings Options -->
@@ -208,6 +220,19 @@
                             </div>
                         @endif
                     </div>
+                @endif
+
+                @if(auth()->user()->isAssessor())
+                    <x-dropdown-link :href="route('assessor.dashboard')">
+                        🏢 Assessment Dashboard
+                        <span class="ml-1 text-xs text-gray-400">({{ auth()->user()->heads_department }})</span>
+                    </x-dropdown-link>
+                @endif
+
+                @if(auth()->user()->isManagingPartner())
+                    <x-dropdown-link :href="route('assessor.dashboard')">
+                        👔 MP Review Dashboard
+                    </x-dropdown-link>
                 @endif
                 
                 @if(auth()->user()->isPendingApproval())

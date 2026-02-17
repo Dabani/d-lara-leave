@@ -139,6 +139,25 @@ class EmployeeController extends Controller
         return redirect()->back()->with('success', 'Profile updated successfully');
     }
 
+    public function updateRole(Request $request, $id)
+    {
+        $request->validate([
+            'role'             => 'required|in:user,assessor,managing_partner,admin',
+            'heads_department' => 'required_if:role,assessor|nullable|string',
+        ]);
+
+        $user = \App\Models\User::findOrFail($id);
+
+        $user->role             = $request->role;
+        $user->heads_department = $request->role === 'assessor'
+            ? $request->heads_department
+            : null;
+        $user->save();
+
+        return redirect()->back()
+            ->with('success', "Role updated to '{$request->role}' for {$user->name}.");
+    }
+
     public function exportToExcel(Request $request)
     {
         $type = $request->get('type', 'all');
