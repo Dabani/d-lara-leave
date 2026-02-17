@@ -84,6 +84,13 @@ class LeaveRequestController extends Controller
         // Create leave request
         $leaveRequest = $employee->leaveRequests()->create($data);
 
+        // Track pre-annual emergency leave on the employee record
+        if (!empty($data['is_pre_annual_emergency'])) {
+            $employee->pre_annual_emergency_leave =
+                ($employee->pre_annual_emergency_leave ?? 0) + $data['working_days_count'];
+            $employee->save();
+        }
+
         // Send email notification
         try {
             $mailData = [
