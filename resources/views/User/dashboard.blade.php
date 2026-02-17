@@ -93,6 +93,7 @@
             @if($employee)
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                     <div class="p-6">
+                        <x-leave-comments :leave-request="$request" :show-form="true" />
                         <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
                             {{-- Profile Image --}}
                             <div class="flex-shrink-0">

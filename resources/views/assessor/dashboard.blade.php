@@ -38,6 +38,7 @@
                 <div class="divide-y divide-gray-100">
                     @forelse($pendingRequests as $request)
                         <div class="p-6">
+                            <x-leave-comments :leave-request="$request" :show-form="true" />
                             {{-- Header --}}
                             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                                 <div>

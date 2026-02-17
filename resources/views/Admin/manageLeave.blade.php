@@ -124,6 +124,7 @@
                         @forelse($pendingLeaveRequests as $request)
                             @php $card = getLeaveRequestCard($request); @endphp
                             <div class="border rounded-lg p-4 hover:shadow-md transition">
+                                <x-leave-comments :leave-request="$request" :show-form="true" />
                                 {{-- Employee Info --}}
                                 <div class="flex items-center justify-between mb-3">
                                     <div>
