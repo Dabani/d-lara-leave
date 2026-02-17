@@ -149,7 +149,17 @@
                     @endif
                 </div>
             @endif
-
+            {{-- ── Pre-submission assessment banner ──────────────────────────────── --}}
+            <div id="assessment-banner" class="hidden mb-4 rounded-lg border-l-4 p-4 transition-all duration-300">
+                <div class="flex items-start gap-3">
+                    <span id="assessment-icon" class="text-2xl flex-shrink-0 mt-0.5"></span>
+                    <div class="flex-1">
+                        <p id="assessment-title" class="font-bold text-sm mb-1"></p>
+                        <ul id="assessment-list" class="text-sm space-y-1 list-none"></ul>
+                    </div>
+                </div>
+            </div>
+            {{-- ── END Pre-submission assessment banner ──────────────────────────────── --}}
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     <form action="{{ route('leave-request.store') }}" method="POST" enctype="multipart/form-data" id="leaveRequestForm">
@@ -405,369 +415,338 @@
             </div>
         </div>
     </div>
-
     @push('scripts')
-    <script>        
-        // Get dynamic annual leave info from blade variable
-        const annualLeaveInfo = @json($annualLeaveStats ?? null);
+    <script>
+    // ─────────────────────────────────────────────────────────────────────────────
+    // DATA FROM BLADE
+    // ─────────────────────────────────────────────────────────────────────────────
+    const annualLeaveInfo = @json($annualLeaveStats ?? null);
 
-        const leaveTypeInfo = {
-            'Casual Leave': 'For personal matters and short-term absences (Deducted from annual allowance)',
-            'Sick Leave': 'For medical reasons and health-related issues (Medical certificate required)',
-            'Emergency Leave': 'For urgent, unforeseen circumstances (Deducted from annual allowance)',
-            'Study Leave': 'For professional exams only (Max 5 days first attempt, 2 days repeat) - Supporting document required',
-            'Maternity Leave': 'For expecting mothers before and after childbirth (Max 98 days)',
-            'Paternity Leave': 'For new fathers to support their family (Max 7 working days)',
-            'Annual Leave': annualLeaveInfo && annualLeaveInfo.is_eligible 
-                ? `Regular vacation time (${annualLeaveInfo.entitlement} working days/year based on ${annualLeaveInfo.years_of_service} years service, max ${annualLeaveInfo.max_days_per_run} days per run, min 2 runs required)`
-                : 'Not eligible - You need at least 12 months of service to apply for annual leave',
-            'Without Pay': 'Leave without salary compensation'
-        };
+    const leaveTypeLimits = {
+        'Maternity Leave': { type: 'calendar', max: 98 },
+        'Paternity Leave': { type: 'working',  max: 7  },
+        'Annual Leave':    { type: 'working',  max: annualLeaveInfo ? annualLeaveInfo.max_days_per_run : 9 },
+        'Study Leave':     { type: 'calendar', max: 5  },
+    };
 
-        // Leave type specific limits
-        const leaveTypeLimits = {
-            'Maternity Leave': { type: 'calendar', max: 98 },
-            'Paternity Leave': { type: 'working', max: 7 },
-            'Annual Leave': { type: 'working', max: 9, yearlyMax: 18 },
-            'Study Leave': { type: 'calendar', max: 5 }  // Will be updated based on attempt
-        };
+    const leaveTypeInfo = {
+        'Casual Leave':    'For personal matters (deducted from annual allowance)',
+        'Sick Leave':      'Medical reasons — medical certificate required',
+        'Emergency Leave': 'Urgent unforeseen circumstances (deducted from annual allowance)',
+        'Study Leave':     'Professional exams only — max 5 days (first attempt) / 2 days (repeat). Supporting document required',
+        'Maternity Leave': 'Before and after childbirth — max 98 calendar days',
+        'Paternity Leave': 'New fathers — max 7 working days',
+        'Annual Leave':    annualLeaveInfo && annualLeaveInfo.is_eligible
+            ? `Regular vacation (${annualLeaveInfo.entitlement} days/year · max ${annualLeaveInfo.max_days_per_run} per run · min 2 runs)`
+            : 'Requires 12+ months of service',
+        'Without Pay':     'Leave without salary',
+    };
 
-        // NOTE: The single authoritative leave_type change handler is defined
-        // further below as leaveTypeSelect.addEventListener('change', ...).
-        // Do NOT add a second listener here — it caused medical_certificate
-        // required=false to persist and the conditional sections to not appear.
+    // ─────────────────────────────────────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────────────────────────────────────
+    function calculateWorkingDays(from, to) {
+        let count = 0;
+        const cur = new Date(from);
+        while (cur <= to) {
+            const d = cur.getDay();
+            if (d !== 0 && d !== 6) count++;
+            cur.setDate(cur.getDate() + 1);
+        }
+        return count;
+    }
 
-        // Update study leave max based on attempt
-        document.querySelectorAll('input[name="is_first_attempt"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                leaveTypeLimits['Study Leave'].max = this.value === '1' ? 5 : 2;
-                calculateDuration();
+    function isInRecommendedPeriod(from, to) {
+        for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+            if (d.getMonth() + 1 >= 7 && d.getMonth() + 1 <= 9) return true;
+        }
+        return false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // ASSESSMENT ENGINE
+    // ─────────────────────────────────────────────────────────────────────────────
+    function runAssessment() {
+        const leaveType = document.getElementById('leave_type').value;
+        const fromVal   = document.getElementById('leave_from').value;
+        const toVal     = document.getElementById('leave_to').value;
+        const isFirst   = document.querySelector('input[name="is_first_attempt"]:checked')?.value === '1';
+        const hasMedDoc = document.getElementById('medical_certificate')?.files?.length > 0;
+        const hasSuppDoc= document.getElementById('supporting_document')?.files?.length > 0;
+
+        const errors   = [];   // red  — will block submit
+        const warnings = [];   // amber — allowed but flagged
+        const oks      = [];   // green
+
+        if (!leaveType) {
+            hideBanner();
+            return;
+        }
+
+        // ── Date checks ──────────────────────────────────────────────────────────
+        if (!fromVal || !toVal) { hideBanner(); return; }
+
+        const from = new Date(fromVal);
+        const to   = new Date(toVal);
+        const today = new Date(); today.setHours(0,0,0,0);
+
+        if (from < today) errors.push('Start date cannot be in the past.');
+        if (to < from)    errors.push('End date must be on or after the start date.');
+
+        const totalDays   = Math.round((to - from) / 86400000) + 1;
+        const workingDays = calculateWorkingDays(from, to);
+
+        // ── Type-specific checks ─────────────────────────────────────────────────
+        if (leaveType === 'Sick Leave') {
+            if (!hasMedDoc)
+                errors.push('Medical certificate is required for Sick Leave. Please upload before submitting.');
+            else
+                oks.push('Medical certificate uploaded ✓');
+        }
+
+        if (leaveType === 'Study Leave') {
+            if (!hasSuppDoc)
+                errors.push('Supporting document is required for Study Leave.');
+            else
+                oks.push('Supporting document uploaded ✓');
+
+            const maxDays = isFirst ? 5 : 2;
+            if (totalDays > maxDays)
+                errors.push(`Study Leave cannot exceed ${maxDays} days (${isFirst ? 'first' : 'repeat'} attempt). You requested ${totalDays}.`);
+            else
+                oks.push(`Duration within limit (${totalDays} of ${maxDays} days) ✓`);
+        }
+
+        if (leaveType === 'Maternity Leave') {
+            if (totalDays > 98)
+                errors.push(`Maternity Leave cannot exceed 98 days. You requested ${totalDays}.`);
+            else
+                oks.push(`Duration within limit (${totalDays} of 98 days) ✓`);
+        }
+
+        if (leaveType === 'Paternity Leave') {
+            if (workingDays > 7)
+                errors.push(`Paternity Leave cannot exceed 7 working days. You requested ${workingDays}.`);
+            else
+                oks.push(`Duration within limit (${workingDays} of 7 working days) ✓`);
+        }
+
+        if (leaveType === 'Annual Leave') {
+            if (!annualLeaveInfo || !annualLeaveInfo.is_eligible) {
+                errors.push('You are not yet eligible for Annual Leave. You need at least 12 months of service.');
+            } else {
+                const maxRun     = annualLeaveInfo.max_days_per_run;
+                const remaining  = annualLeaveInfo.remaining_days;
+                const runsCount  = annualLeaveInfo.annual_runs_count;
+
+                if (workingDays > maxRun)
+                    errors.push(`Annual Leave cannot exceed ${maxRun} working days per run. You requested ${workingDays}.`);
+                else
+                    oks.push(`Duration within per-run limit (${workingDays} of ${maxRun}) ✓`);
+
+                if (workingDays > remaining)
+                    errors.push(`Insufficient Annual Leave balance. Requested: ${workingDays} days · Remaining: ${remaining} days.`);
+                else
+                    oks.push(`Sufficient balance (${remaining} days remaining) ✓`);
+
+                if (!isInRecommendedPeriod(from, to))
+                    warnings.push('Annual Leave is recommended during July–September. Out-of-period requests require additional justification.');
+                else
+                    oks.push('Dates fall within recommended period (Jul–Sep) ✓');
+
+                if (runsCount === 0)
+                    warnings.push('This will be your first run of Annual Leave. Remember you must take at least 2 separate runs per year.');
+                else if (runsCount >= 1)
+                    oks.push(`You have taken ${runsCount} run(s) this year ✓`);
+            }
+        }
+
+        if (leaveType === 'Emergency Leave') {
+            if (!annualLeaveInfo || !annualLeaveInfo.is_eligible) {
+                warnings.push(
+                    'You are applying for Emergency Leave before completing 12 months of service. ' +
+                    'This is permitted, but these days will be automatically deducted from your Annual Leave balance once you become eligible.'
+                );
+            } else {
+                const remaining = annualLeaveInfo.remaining_days;
+                if (workingDays > remaining)
+                    warnings.push(`This Emergency Leave (${workingDays} days) will exceed your remaining Annual Leave balance (${remaining} days).`);
+                else
+                    oks.push(`Within Annual Leave balance (${remaining} remaining) ✓`);
+            }
+        }
+
+        if (leaveType === 'Casual Leave') {
+            if (annualLeaveInfo && annualLeaveInfo.is_eligible) {
+                const remaining = annualLeaveInfo.remaining_days;
+                const afterBalance = remaining - workingDays;
+                if (afterBalance < 0)
+                    errors.push(`Insufficient Annual Leave balance for Casual Leave. Remaining: ${remaining} days · Requested: ${workingDays} days.`);
+                else if (afterBalance <= 3)
+                    warnings.push(`After this Casual Leave, you will have only ${afterBalance} day(s) of Annual Leave remaining.`);
+                else
+                    oks.push(`Within Annual Leave balance ✓`);
+            }
+        }
+
+        // ── Show banner ──────────────────────────────────────────────────────────
+        renderBanner(errors, warnings, oks);
+    }
+
+    function renderBanner(errors, warnings, oks) {
+        const banner = document.getElementById('assessment-banner');
+        const icon   = document.getElementById('assessment-icon');
+        const title  = document.getElementById('assessment-title');
+        const list   = document.getElementById('assessment-list');
+        const submit = document.querySelector('button[type="submit"]');
+
+        banner.classList.remove('hidden', 'border-red-400', 'bg-red-50',
+                                'border-yellow-400', 'bg-yellow-50',
+                                'border-green-400', 'bg-green-50');
+        list.innerHTML = '';
+
+        if (errors.length > 0) {
+            // RED
+            banner.classList.add('border-red-400', 'bg-red-50');
+            icon.textContent  = '🚫';
+            title.textContent = 'This request has critical issues and will be rejected:';
+            title.className   = 'font-bold text-sm mb-1 text-red-800';
+            errors.forEach(e => {
+                const li = document.createElement('li');
+                li.className   = 'text-red-700 flex items-start gap-1';
+                li.innerHTML   = `<span class="mt-0.5">✗</span><span>${e}</span>`;
+                list.appendChild(li);
             });
+            warnings.forEach(w => {
+                const li = document.createElement('li');
+                li.className = 'text-yellow-700 flex items-start gap-1 mt-1';
+                li.innerHTML = `<span class="mt-0.5">⚠</span><span>${w}</span>`;
+                list.appendChild(li);
+            });
+            if (submit) { submit.disabled = true; submit.classList.add('opacity-50', 'cursor-not-allowed'); }
+
+        } else if (warnings.length > 0) {
+            // AMBER
+            banner.classList.add('border-yellow-400', 'bg-yellow-50');
+            icon.textContent  = '⚠️';
+            title.textContent = 'Your request has warnings — review before submitting:';
+            title.className   = 'font-bold text-sm mb-1 text-yellow-800';
+            warnings.forEach(w => {
+                const li = document.createElement('li');
+                li.className = 'text-yellow-700 flex items-start gap-1';
+                li.innerHTML = `<span class="mt-0.5">⚠</span><span>${w}</span>`;
+                list.appendChild(li);
+            });
+            oks.forEach(o => {
+                const li = document.createElement('li');
+                li.className = 'text-green-700 flex items-start gap-1';
+                li.innerHTML = `<span class="mt-0.5">✓</span><span>${o}</span>`;
+                list.appendChild(li);
+            });
+            if (submit) { submit.disabled = false; submit.classList.remove('opacity-50', 'cursor-not-allowed'); }
+
+        } else if (oks.length > 0) {
+            // GREEN
+            banner.classList.add('border-green-400', 'bg-green-50');
+            icon.textContent  = '✅';
+            title.textContent = 'All checks passed — your request looks good:';
+            title.className   = 'font-bold text-sm mb-1 text-green-800';
+            oks.forEach(o => {
+                const li = document.createElement('li');
+                li.className = 'text-green-700 flex items-start gap-1';
+                li.innerHTML = `<span class="mt-0.5">✓</span><span>${o}</span>`;
+                list.appendChild(li);
+            });
+            if (submit) { submit.disabled = false; submit.classList.remove('opacity-50', 'cursor-not-allowed'); }
+        }
+
+        banner.classList.remove('hidden');
+    }
+
+    function hideBanner() {
+        document.getElementById('assessment-banner').classList.add('hidden');
+        const submit = document.querySelector('button[type="submit"]');
+        if (submit) { submit.disabled = false; submit.classList.remove('opacity-50', 'cursor-not-allowed'); }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // CONDITIONAL SECTIONS (single handler — no duplicate listeners)
+    // ─────────────────────────────────────────────────────────────────────────────
+    const leaveTypeSelect = document.getElementById('leave_type');
+
+    leaveTypeSelect.addEventListener('change', function () {
+        const leaveType           = this.value;
+        const infoElement         = document.getElementById('leave-type-info');
+        const medicalSection      = document.getElementById('medical-certificate-section');
+        const studyAttemptSection = document.getElementById('study-leave-attempt');
+        const supportingDocSection= document.getElementById('supporting-document-section');
+
+        // Reset
+        medicalSection.classList.add('hidden');
+        studyAttemptSection.classList.add('hidden');
+        supportingDocSection.classList.add('hidden');
+        document.getElementById('medical_certificate').required = false;
+        document.getElementById('supporting_document').required = false;
+
+        infoElement.textContent = leaveTypeInfo[leaveType] || '';
+
+        if (leaveType === 'Sick Leave') {
+            medicalSection.classList.remove('hidden');
+            document.getElementById('medical_certificate').required = true;
+        }
+        if (leaveType === 'Study Leave') {
+            studyAttemptSection.classList.remove('hidden');
+            supportingDocSection.classList.remove('hidden');
+            document.getElementById('supporting_document').required = true;
+        }
+
+        calculateDuration();
+        runAssessment();
+    });
+
+    document.querySelectorAll('input[name="is_first_attempt"]').forEach(r => {
+        r.addEventListener('change', function () {
+            leaveTypeLimits['Study Leave'].max = this.value === '1' ? 5 : 2;
+            calculateDuration();
+            runAssessment();
         });
+    });
 
-        // Calculate working days (excluding weekends)
-        function calculateWorkingDays(fromDate, toDate) {
-            let count = 0;
-            const current = new Date(fromDate);
-            const end = new Date(toDate);
-            
-            while (current <= end) {
-                const dayOfWeek = current.getDay();
-                // Exclude Saturday (6) and Sunday (0)
-                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                    count++;
-                }
-                current.setDate(current.getDate() + 1);
-            }
-            
-            return count;
-        }
+    // ─────────────────────────────────────────────────────────────────────────────
+    // DURATION CALCULATION
+    // ─────────────────────────────────────────────────────────────────────────────
+    function calculateDuration() {
+        const from = document.getElementById('leave_from').value;
+        const to   = document.getElementById('leave_to').value;
 
-        // Check if dates fall in July-September
-        function isInRecommendedPeriod(fromDate, toDate) {
-            const from = new Date(fromDate);
-            const to = new Date(toDate);
-            
-            for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-                const month = d.getMonth() + 1; // JavaScript months are 0-indexed
-                if (month >= 7 && month <= 9) {
-                    return true;
-                }
-            }
-            return false;
-        }
+        if (from && to) {
+            const f = new Date(from), t = new Date(to);
+            const total   = Math.ceil((t - f) / 86400000) + 1;
+            const working = calculateWorkingDays(f, t);
 
-        // Calculate duration and validate
-        function calculateDuration() {
-            const from = document.getElementById('leave_from').value;
-            const to = document.getElementById('leave_to').value;
-            const leaveType = document.getElementById('leave_type').value;
-            const annualWarning = document.getElementById('annual-leave-warning');
-            
-            if (from && to) {
-                const fromDate = new Date(from);
-                const toDate = new Date(to);
-                const diffTime = toDate - fromDate;
-                const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                const workingDays = calculateWorkingDays(fromDate, toDate);
-                
-                if (totalDays > 0) {
-                    document.getElementById('total-days-count').textContent = totalDays;
-                    document.getElementById('working-days-count').textContent = workingDays;
-                    document.getElementById('duration-display').classList.remove('hidden');
-                    
-                    // Show warning for annual leave outside recommended period
-                    if (leaveType === 'Annual Leave') {
-                        if (!isInRecommendedPeriod(from, to)) {
-                            annualWarning.classList.remove('hidden');
-                        } else {
-                            annualWarning.classList.add('hidden');
-                        }
-                    } else {
-                        annualWarning.classList.add('hidden');
-                    }
-                    
-                    // Validate against limits
-                    validateDuration(leaveType, totalDays, workingDays);
-                } else {
-                    document.getElementById('duration-display').classList.add('hidden');
-                    annualWarning.classList.add('hidden');
-                }
+            if (total > 0) {
+                document.getElementById('total-days-count').textContent   = total;
+                document.getElementById('working-days-count').textContent = working;
+                document.getElementById('duration-display').classList.remove('hidden');
             } else {
                 document.getElementById('duration-display').classList.add('hidden');
-                annualWarning.classList.add('hidden');
             }
+        } else {
+            document.getElementById('duration-display').classList.add('hidden');
         }
+    }
 
-        // Validate duration against leave type limits
-        function validateDuration(leaveType, totalDays, workingDays) {
-            if (!leaveTypeLimits[leaveType]) return;
-            
-            const limit = leaveTypeLimits[leaveType];
-            const daysToCheck = limit.type === 'working' ? workingDays : totalDays;
-            
-            if (daysToCheck > limit.max) {
-                alert(`Warning: ${leaveType} cannot exceed ${limit.max} ${limit.type} days. You have requested ${daysToCheck} ${limit.type} days.`);
-            }
-        }
+    document.getElementById('leave_from').addEventListener('change', () => { calculateDuration(); runAssessment(); });
+    document.getElementById('leave_to').addEventListener('change', ()   => { calculateDuration(); runAssessment(); });
+    document.getElementById('leave_from').addEventListener('change', function () {
+        document.getElementById('leave_to').min = this.value;
+    });
 
-        document.getElementById('leave_from').addEventListener('change', calculateDuration);
-        document.getElementById('leave_to').addEventListener('change', calculateDuration);
-
-        // Set min date for leave_to based on leave_from
-        document.getElementById('leave_from').addEventListener('change', function() {
-            document.getElementById('leave_to').min = this.value;
-        });
-
-        
-        // ── Single authoritative leave-type change handler ──────────────
-        // leaveTypeSelect was never declared above, so declare it here.
-        const leaveTypeSelect = document.getElementById('leave_type');
-
-        leaveTypeSelect.addEventListener('change', function() {
-            const leaveType = this.value;
-            const infoElement          = document.getElementById('leave-type-info');
-            const medicalSection       = document.getElementById('medical-certificate-section');
-            const studyAttemptSection  = document.getElementById('study-leave-attempt');
-            const supportingDocSection = document.getElementById('supporting-document-section');
-
-            // 1. Reset ALL conditional sections and required flags first
-            medicalSection.classList.add('hidden');
-            studyAttemptSection.classList.add('hidden');
-            supportingDocSection.classList.add('hidden');
-            document.getElementById('medical_certificate').required  = false;
-            document.getElementById('supporting_document').required  = false;
-
-            // 2. Update info description
-            infoElement.textContent = leaveTypeInfo[leaveType] || '';
-
-            // 3. Sick Leave → show medical certificate upload
-            if (leaveType === 'Sick Leave') {
-                medicalSection.classList.remove('hidden');
-                document.getElementById('medical_certificate').required = true;
-            }
-
-            // 4. Study Leave → show attempt radios + supporting doc upload
-            if (leaveType === 'Study Leave') {
-                studyAttemptSection.classList.remove('hidden');
-                supportingDocSection.classList.remove('hidden');
-                document.getElementById('supporting_document').required = true;
-            }
-
-            // 5. Recalculate duration if dates are already set
-            calculateDuration();
-        });
+    // Re-run assessment when file inputs change
+    ['medical_certificate','supporting_document'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', runAssessment);
+    });
     </script>
-    
-    {{-- Calendar Blocked dates script --}}
-    <script>
-        let blockedDates = [];
-        let fromPicker, toPicker;
-
-        // Fetch blocked dates on page load
-        async function fetchBlockedDates() {
-            try {
-                const response = await fetch('{{ route("api.leave-calendar.blocked-dates") }}', {
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                blockedDates = data.blocked_dates.map(item => item.date);
-                
-                console.log('Blocked dates loaded:', blockedDates.length);
-                initializeDatePickers();
-            } catch (error) {
-                console.error('Error fetching blocked dates:', error);
-                initializeDatePickers(); // Initialize anyway
-            }
-        }
-
-        // Initialize Flatpickr date pickers
-        function initializeDatePickers() {
-            // Leave From picker
-            fromPicker = flatpickr("#leave_from", {
-                dateFormat: "Y-m-d",
-                minDate: "today",
-                disable: blockedDates,
-                onChange: function(selectedDates, dateStr, instance) {
-                    // Update minimum date for "Leave To"
-                    if (toPicker) {
-                        toPicker.set('minDate', dateStr);
-                    }
-                    checkDateAvailability();
-                    calculateDuration();
-                },
-                onDayCreate: function(dObj, dStr, fp, dayElem) {
-                    const dateStr = dayElem.dateObj.toISOString().split('T')[0];
-                    if (blockedDates.includes(dateStr)) {
-                        dayElem.className += " flatpickr-disabled";
-                        dayElem.title = "Already booked";
-                        dayElem.style.backgroundColor = "#fee2e2";
-                        dayElem.style.color = "#991b1b";
-                    }
-                }
-            });
-
-            // Leave To picker
-            toPicker = flatpickr("#leave_to", {
-                dateFormat: "Y-m-d",
-                minDate: "today",
-                disable: blockedDates,
-                onChange: function(selectedDates, dateStr, instance) {
-                    checkDateAvailability();
-                    calculateDuration();
-                },
-                onDayCreate: function(dObj, dStr, fp, dayElem) {
-                    const dateStr = dayElem.dateObj.toISOString().split('T')[0];
-                    if (blockedDates.includes(dateStr)) {
-                        dayElem.className += " flatpickr-disabled";
-                        dayElem.title = "Already booked";
-                        dayElem.style.backgroundColor = "#fee2e2";
-                        dayElem.style.color = "#991b1b";
-                    }
-                }
-            });
-        }
-
-        // Check if selected dates have conflicts
-        async function checkDateAvailability() {
-            const leaveFrom = document.getElementById('leave_from').value;
-            const leaveTo = document.getElementById('leave_to').value;
-            const conflictWarning = document.getElementById('conflict-warning');
-            const conflictDetails = document.getElementById('conflict-details');
-
-            if (!leaveFrom || !leaveTo) {
-                conflictWarning.classList.add('hidden');
-                return;
-            }
-
-            try {
-                const response = await fetch('{{ route("api.leave-calendar.check-availability") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        leave_from: leaveFrom,
-                        leave_to: leaveTo
-                    })
-                });
-
-                const data = await response.json();
-
-                if (!data.available && data.conflicts.length > 0) {
-                    // Show conflict warning
-                    conflictWarning.classList.remove('hidden');
-                    
-                    let conflictHTML = '<p class="font-semibold mb-2">The following existing leave(s) overlap with your selected dates:</p><ul class="list-disc list-inside space-y-1">';
-                    
-                    data.conflicts.forEach(conflict => {
-                        conflictHTML += `<li>${conflict.leave_type} (${conflict.leave_from} to ${conflict.leave_to}) - ${conflict.status}</li>`;
-                    });
-                    
-                    conflictHTML += '</ul><p class="mt-2 font-semibold">Please select different dates or cancel the conflicting leave request.</p>';
-                    
-                    conflictDetails.innerHTML = conflictHTML;
-                    
-                    // Disable submit button
-                    const submitButton = document.querySelector('button[type="submit"]');
-                    if (submitButton) {
-                        submitButton.disabled = true;
-                        submitButton.classList.add('opacity-50', 'cursor-not-allowed');
-                        submitButton.title = 'Cannot submit - date conflict detected';
-                    }
-                } else {
-                    // No conflicts
-                    conflictWarning.classList.add('hidden');
-                    
-                    // Enable submit button
-                    const submitButton = document.querySelector('button[type="submit"]');
-                    if (submitButton) {
-                        submitButton.disabled = false;
-                        submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                        submitButton.title = '';
-                    }
-                }
-            } catch (error) {
-                console.error('Error checking availability:', error);
-            }
-        }
-
-        // Load blocked dates when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            fetchBlockedDates();
-        });
-
-        // Update the existing calculateDuration function to work with Flatpickr
-        function calculateDuration() {
-            const from = document.getElementById('leave_from').value;
-            const to = document.getElementById('leave_to').value;
-            const leaveType = document.getElementById('leave_type').value;
-            const annualWarning = document.getElementById('annual-leave-warning');
-            
-            if (from && to) {
-                const fromDate = new Date(from);
-                const toDate = new Date(to);
-                const diffTime = toDate - fromDate;
-                const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                const workingDays = calculateWorkingDays(fromDate, toDate);
-                
-                if (totalDays > 0) {
-                    document.getElementById('total-days-count').textContent = totalDays;
-                    document.getElementById('working-days-count').textContent = workingDays;
-                    
-                    // Show warning for annual leave outside recommended period
-                    if (leaveType === 'Annual Leave') {
-                        if (!isInRecommendedPeriod(from, to)) {
-                            annualWarning.classList.remove('hidden');
-                        } else {
-                            annualWarning.classList.add('hidden');
-                        }
-                    } else {
-                        annualWarning.classList.add('hidden');
-                    }
-                    
-                    // Validate against limits
-                    validateDuration(leaveType, totalDays, workingDays);
-                }
-            }
-        }
-    </script>    
-
-    {{-- Add custom CSS for blocked dates --}}
-    <style>
-        .flatpickr-day.flatpickr-disabled {
-            cursor: not-allowed !important;
-        }
-        
-        .flatpickr-calendar {
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-    </style>
-
     @endpush
 </x-app-layout>
