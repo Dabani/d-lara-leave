@@ -186,34 +186,65 @@ class LeaveManageController extends Controller
 
     public function rejectLeave(Request $request): RedirectResponse
     {
-        $leaveRequest = LeaveRequest::find($request->id);
-        
+        $request->validate([
+            'comment' => 'required|string|min:5',
+        ]);
+
+        $leaveRequest = LeaveRequest::with('employee.user')->find($request->id);
+
         if (!$leaveRequest) {
             return redirect()->back()->with('error', 'Leave request not found');
         }
 
-        $leaveRequest->status = 'Rejected';
+        $leaveRequest->status  = 'Rejected';
+        $leaveRequest->comment = $request->comment;
         $leaveRequest->save();
 
-        $employee = $leaveRequest->employee;
-        
-        if ($employee) {
-            try {
-                $mailData = [
-                    'employee_name' => $employee->user->name,
-                    'leave_from' => $leaveRequest->leave_from,
-                    'leave_to' => $leaveRequest->leave_to,
-                    'leave_type' => $leaveRequest->leave_type,
-                    'reason' => $leaveRequest->reason,
-                ];
+        // Rejection comment visible to all
+        \App\Models\LeaveComment::create([
+            'leave_request_id' => $leaveRequest->id,
+            'user_id'          => auth()->id(),
+            'body'             => "**Admin rejection:** " . $request->comment,
+            'type'             => 'rejection_notice',
+            'visibility'       => 'all',
+        ]);
 
-                Mail::to($employee->user->email)->send(new LeaveRequestRejected($mailData));
+        $employee = $leaveRequest->employee;
+
+        // Notify applicant
+        try {
+            Mail::to($employee->user->email)->send(new LeaveRequestRejected([
+                'employee_name' => $employee->user->name,
+                'leave_from'    => $leaveRequest->leave_from,
+                'leave_to'      => $leaveRequest->leave_to,
+                'leave_type'    => $leaveRequest->leave_type,
+                'reason'        => $request->comment,
+            ]));
+        } catch (\Exception $e) {
+            \Log::warning('Rejection email to employee failed: ' . $e->getMessage());
+        }
+
+        // Also notify the assessor who assessed it (if any)
+        if ($leaveRequest->assessed_by) {
+            try {
+                $assessor = \App\Models\User::find($leaveRequest->assessed_by);
+                if ($assessor) {
+                    Mail::to($assessor->email)->send(new LeaveAdminNotification([
+                        'assessor_name'  => $assessor->name,
+                        'employee_name'  => $employee->user->name,
+                        'leave_type'     => $leaveRequest->leave_type,
+                        'leave_from'     => $leaveRequest->leave_from,
+                        'leave_to'       => $leaveRequest->leave_to,
+                        'reason'         => $request->comment,
+                        'action'         => 'rejected by Admin',
+                    ]));
+                }
             } catch (\Exception $e) {
-                \Log::warning('Failed to send rejection email: ' . $e->getMessage());
+                \Log::warning('Rejection email to assessor failed: ' . $e->getMessage());
             }
         }
 
-        return redirect()->back()->with('success', 'Leave request rejected successfully');
+        return redirect()->back()->with('success', 'Leave request rejected. All parties notified.');
     }
 
     /**
@@ -309,4 +340,5 @@ class LeaveManageController extends Controller
             'stats'
         ));
     }
+
 }
