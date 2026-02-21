@@ -31,61 +31,109 @@ class LeaveManageController extends Controller
     {
         $departmentFilter = $request->get('department');
         $yearFilter = $request->get('year', date('Y'));
-
-        $query = LeaveRequest::with('employee.user');
-
-        if ($departmentFilter) {
-            $query->whereHas('employee', function($q) use ($departmentFilter) {
-                $q->where('department', $departmentFilter);
+        $search = $request->input('search');
+    
+        // Base query with common filters
+        $baseQuery = LeaveRequest::with('employee.user')
+            ->when($departmentFilter, function($q) use ($departmentFilter) {
+                $q->whereHas('employee', function($q2) use ($departmentFilter) {
+                    $q2->where('department', $departmentFilter);
+                });
+            })
+            ->when($yearFilter, function($q) use ($yearFilter) {
+                $q->whereYear('leave_from', $yearFilter);
             });
-        }
-
-        if ($yearFilter) {
-            $query->whereYear('leave_from', $yearFilter);
-        }
-
-        $pendingLeaveRequests = (clone $query)
+    
+        // Pending Leave Requests
+        $pendingLeaveRequests = (clone $baseQuery)
             ->where('status', 'pending')
+            ->when($search, function($q) use ($search) {
+                $q->where(function($query) use ($search) {
+                    $query->whereHas('employee.user', function($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%")
+                           ->orWhere('email', 'like', "%{$search}%");
+                    })
+                    ->orWhere('leave_type', 'like', "%{$search}%")
+                    ->orWhere('reason', 'like', "%{$search}%");
+                    
+                    // Also search in employee department
+                    $query->orWhereHas('employee', function($q2) use ($search) {
+                        $q2->where('department', 'like', "%{$search}%");
+                    });
+                });
+            })
             ->latest()
-            ->paginate(5, ['*'], 'pending_page');
-
-        $approvedLeaveRequests = (clone $query)
+            ->paginate(10, ['*'], 'pending_page')
+            ->appends(['search' => $search, 'department' => $departmentFilter, 'year' => $yearFilter, 'approved_page' => request('approved_page'), 'rejected_page' => request('rejected_page')]);
+    
+        // Approved Leave Requests
+        $approvedLeaveRequests = (clone $baseQuery)
             ->where('status', 'Approved')
+            ->when($search, function($q) use ($search) {
+                $q->where(function($query) use ($search) {
+                    $query->whereHas('employee.user', function($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%")
+                           ->orWhere('email', 'like', "%{$search}%");
+                    })
+                    ->orWhere('leave_type', 'like', "%{$search}%")
+                    ->orWhere('reason', 'like', "%{$search}%");
+                    
+                    $query->orWhereHas('employee', function($q2) use ($search) {
+                        $q2->where('department', 'like', "%{$search}%");
+                    });
+                });
+            })
             ->latest()
-            ->paginate(5, ['*'], 'approved_page');
-
-        $rejectedLeaveRequests = (clone $query)
+            ->paginate(10, ['*'], 'approved_page')
+            ->appends(['search' => $search, 'department' => $departmentFilter, 'year' => $yearFilter, 'pending_page' => request('pending_page'), 'rejected_page' => request('rejected_page')]);
+    
+        // Rejected Leave Requests
+        $rejectedLeaveRequests = (clone $baseQuery)
             ->where('status', 'Rejected')
+            ->when($search, function($q) use ($search) {
+                $q->where(function($query) use ($search) {
+                    $query->whereHas('employee.user', function($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%")
+                           ->orWhere('email', 'like', "%{$search}%");
+                    })
+                    ->orWhere('leave_type', 'like', "%{$search}%")
+                    ->orWhere('reason', 'like', "%{$search}%");
+                    
+                    $query->orWhereHas('employee', function($q2) use ($search) {
+                        $q2->where('department', 'like', "%{$search}%");
+                    });
+                });
+            })
             ->latest()
-            ->paginate(5, ['*'], 'rejected_page');
-
-        $leaveRequestsQuery = LeaveRequest::with('employee.user');
-        
-        if ($departmentFilter) {
-            $leaveRequestsQuery->whereHas('employee', function($q) use ($departmentFilter) {
-                $q->where('department', $departmentFilter);
+            ->paginate(10, ['*'], 'rejected_page')
+            ->appends(['search' => $search, 'department' => $departmentFilter, 'year' => $yearFilter, 'pending_page' => request('pending_page'), 'approved_page' => request('approved_page')]);
+    
+        // Get all leave requests for statistics (filtered but not paginated)
+        $leaveRequestsQuery = LeaveRequest::with('employee.user')
+            ->when($departmentFilter, function($q) use ($departmentFilter) {
+                $q->whereHas('employee', function($q2) use ($departmentFilter) {
+                    $q2->where('department', $departmentFilter);
+                });
+            })
+            ->when($yearFilter, function($q) use ($yearFilter) {
+                $q->whereYear('leave_from', $yearFilter);
             });
-        }
-
-        if ($yearFilter) {
-            $leaveRequestsQuery->whereYear('leave_from', $yearFilter);
-        }
-
+    
         $leaveRequests = $leaveRequestsQuery->get();
-
+    
         $stats = [
             'pending' => $leaveRequests->filter(fn($r) => strtolower($r->status) === 'pending')->count(),
             'approved' => $leaveRequests->filter(fn($r) => strtolower($r->status) === 'approved')->count(),
             'rejected' => $leaveRequests->filter(fn($r) => strtolower($r->status) === 'rejected')->count(),
             'total' => $leaveRequests->count(),
         ];
-
+    
         try {
             $departments = Department::all();
         } catch (\Exception $e) {
             $departments = collect([]);
         }
-
+    
         $years = LeaveRequest::selectRaw('YEAR(leave_from) as year')
             ->distinct()
             ->orderBy('year', 'desc')
@@ -94,7 +142,7 @@ class LeaveManageController extends Controller
         if ($years->isEmpty()) {
             $years = collect([date('Y')]);
         }
-
+    
         return view('admin.manageLeave', compact(
             'pendingLeaveRequests',
             'approvedLeaveRequests',
@@ -107,7 +155,7 @@ class LeaveManageController extends Controller
             'stats'
         ));
     }
-
+    
     public function approveLeave(Request $request): RedirectResponse
     {
         $leaveRequest = LeaveRequest::find($request->id);

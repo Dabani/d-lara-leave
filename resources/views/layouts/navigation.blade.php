@@ -39,19 +39,28 @@
                         <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
                             {{ __('Dashboard') }}
                         </x-nav-link>
-                        
                         <x-nav-link :href="route('admin.manage-employee')" :active="request()->routeIs('admin.manage-employee')">
-                            {{ __('Manage Employee') }}
+                            {{ __('Manage Employees') }}
                         </x-nav-link>
-                        
                         <x-nav-link :href="route('admin.manage-leave')" :active="request()->routeIs('admin.manage-leave')">
                             {{ __('Manage Leave') }}
+                        </x-nav-link>
+                    @endif
+
+                    {{-- Assessor / Managing Partner dashboard link --}}
+                    @if(auth()->user()->isAssessor() || auth()->user()->isManagingPartner())
+                        <x-nav-link :href="route('assessor.dashboard')" :active="request()->routeIs('assessor.*')">
+                            <svg class="w-4 h-4 mr-1 inline" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                                <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            Assessment
                         </x-nav-link>
                     @endif
                 </div>
             </div>
 
-            <!-- Settings Dropdown -->
+            <!-- Settings Dropdown (Single dropdown for all users) -->
             <div class="hidden sm:flex sm:items-center sm:ml-6">
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
@@ -104,13 +113,60 @@
                             @endif
                         </div>
 
-                        {{-- Profile Link --}}
+                        {{-- Profile Link based on role --}}
                         @if(auth()->user()->role === 'user')
                             <x-dropdown-link :href="route('user.profile')">
                                 {{ __('My Profile') }}
                             </x-dropdown-link>
+                        @elseif(auth()->user()->role === 'admin')
+                            <x-dropdown-link :href="route('profile.edit')">
+                                {{ __('My Profile') }}
+                            </x-dropdown-link>
                         @endif
 
+                        {{-- In the dropdown content section for assessors --}}
+@if(auth()->user()->isAssessor())
+    <x-dropdown-link :href="route('assessor.dashboard')">
+        🏢 Assessment Dashboard
+        <span class="ml-1 text-xs text-gray-400">({{ auth()->user()->heads_department }})</span>
+    </x-dropdown-link>
+    
+    {{-- View Profile (read-only) --}}
+    <x-dropdown-link :href="route('user.profile')">
+        {{ __('View Profile') }}
+    </x-dropdown-link>
+    
+    {{-- Edit Profile (password change) --}}
+    <x-dropdown-link :href="route('profile.edit')">
+        {{ __('Edit Profile') }}
+    </x-dropdown-link>
+    
+    {{-- Leave History --}}
+    <x-dropdown-link :href="route('leave-history')">
+        {{ __('Leave History') }}
+    </x-dropdown-link>
+@endif
+
+@if(auth()->user()->isManagingPartner())
+    <x-dropdown-link :href="route('assessor.dashboard')">
+        👔 MP Review Dashboard
+    </x-dropdown-link>
+    
+    {{-- View Profile (read-only) --}}
+    <x-dropdown-link :href="route('user.profile')">
+        {{ __('View Profile') }}
+    </x-dropdown-link>
+    
+    {{-- Edit Profile (password change) --}}
+    <x-dropdown-link :href="route('profile.edit')">
+        {{ __('Edit Profile') }}
+    </x-dropdown-link>
+    
+    {{-- Leave History --}}
+    <x-dropdown-link :href="route('leave-history')">
+        {{ __('Leave History') }}
+    </x-dropdown-link>
+@endif
                         {{-- Logout --}}
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
@@ -174,18 +230,22 @@
                 <x-responsive-nav-link :href="route('admin.manage-leave')" :active="request()->routeIs('admin.manage-leave')">
                     {{ __('Manage Leave') }}
                 </x-responsive-nav-link>
+
+                {{-- Admin Profile Link in Mobile --}}
+                <x-responsive-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.edit')">
+                    {{ __('My Profile') }}
+                </x-responsive-nav-link>
             @endif
 
             {{-- Assessor / Managing Partner dashboard link --}}
             @if(auth()->user()->isAssessor() || auth()->user()->isManagingPartner())
-                <x-nav-link :href="route('assessor.dashboard')"
-                            :active="request()->routeIs('assessor.*')">
+                <x-responsive-nav-link :href="route('assessor.dashboard')" :active="request()->routeIs('assessor.*')">
                     <svg class="w-4 h-4 mr-1 inline" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
                         <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                     </svg>
                     Assessment
-                </x-nav-link>
+                </x-responsive-nav-link>
             @endif
         </div>
 
@@ -222,19 +282,6 @@
                     </div>
                 @endif
 
-                @if(auth()->user()->isAssessor())
-                    <x-dropdown-link :href="route('assessor.dashboard')">
-                        🏢 Assessment Dashboard
-                        <span class="ml-1 text-xs text-gray-400">({{ auth()->user()->heads_department }})</span>
-                    </x-dropdown-link>
-                @endif
-
-                @if(auth()->user()->isManagingPartner())
-                    <x-dropdown-link :href="route('assessor.dashboard')">
-                        👔 MP Review Dashboard
-                    </x-dropdown-link>
-                @endif
-                
                 @if(auth()->user()->isPendingApproval())
                     <div class="mt-2">
                         <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -248,6 +295,10 @@
                 {{-- Profile Link in Mobile --}}
                 @if(auth()->user()->role === 'user')
                     <x-responsive-nav-link :href="route('user.profile')">
+                        {{ __('My Profile') }}
+                    </x-responsive-nav-link>
+                @elseif(auth()->user()->role === 'admin')
+                    <x-responsive-nav-link :href="route('profile.edit')">
                         {{ __('My Profile') }}
                     </x-responsive-nav-link>
                 @endif

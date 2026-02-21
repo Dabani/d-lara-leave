@@ -31,22 +31,18 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// User routes - Make them available to both 'user' and 'assessor' roles
-Route::middleware(['auth', 'verified'])->group(function () {
-    // Routes accessible by both 'user' and 'assessor' (and managing partner)
+// User routes
+Route::middleware(['auth', 'verified', 'user'])->group(function () {
+    // Dashboard
     Route::get('/dashboard', [UserController::class, 'index'])->name('dashboard');
     
-    // Leave History - accessible by both
+    // Leave History
     Route::get('/leave-history', [UserController::class, 'leaveHistory'])->name('leave-history');
     
-    // Profile View (view only, no edit)
-    Route::get('/my-profile', [UserController::class, 'profile'])->name('my-profile');
-    Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
-    
-    // Print Profile
-    Route::get('/user/profile/print', [UserController::class, 'printProfile'])->name('user.profile.print');
-    
-    // Leave Request routes - accessible by both
+    // Profile Update
+    Route::post('/update-profile', [UserController::class, 'updateProfile'])->name('update-profile');
+
+    // Leave Request routes
     Route::get('/leave-request/create', [LeaveRequestController::class, 'create'])->name('leave-request.create');
     Route::post('/leave-request', [LeaveRequestController::class, 'store'])->name('leave-request.store');
     Route::get('/leave-request/{id}', [LeaveRequestController::class, 'show'])->name('leave-request.show');
@@ -54,35 +50,51 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/leave-request/{id}', [LeaveRequestController::class, 'update'])->name('leave-request.update');
     Route::delete('/leave-request/{id}', [LeaveRequestController::class, 'destroy'])->name('leave-request.destroy');
 
-    // Comments on own leave requests
+    // ── Comments on own leave requests ────────────────────
     Route::post('/leave-request/{id}/comment', [LeaveCommentController::class, 'store'])->name('leave-comment.store');
 
-    // Update profile image - accessible by both
-    Route::post('/user/update-profile', [UserController::class, 'updateProfile'])->name('user.update-profile');
-});
+    // ── Profile ──────────────────────────────────────────────────────────────
+    // Primary route
+    Route::get('/user/profile', [UserController::class, 'profile'])
+        ->name('user.profile');
 
-// Separate route for profile edit (password change) - accessible by all authenticated users
-Route::middleware(['auth'])->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    // Note: Delete route remains but we'll hide the button for non-admins in the view
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    // Legacy alias (was handled by UserProfileController::index before merge).
+    // Keep so any existing links to route('my-profile') still resolve.
+    Route::get('/my-profile', [UserController::class, 'profile'])
+        ->name('my-profile');
+
+    // Print profile
+    Route::get('/user/profile/print', [UserController::class, 'printProfile'])
+        ->name('user.profile.print');
+
+    // Update profile image
+    Route::post('/user/update-profile', [UserController::class, 'updateProfile'])
+        ->name('user.update-profile');
+
 });
 
 // ── Assessor routes (HOD + Managing Partner — guarded by 'assessor' middleware) ──
+// ADD entire group —
 Route::middleware(['auth', 'verified', 'assessor'])->group(function () {
-    Route::get('/assessor/dashboard', [AssessorController::class, 'dashboard'])->name('assessor.dashboard');
+
+    Route::get('/assessor/dashboard',
+        [AssessorController::class, 'dashboard'])->name('assessor.dashboard');
 
     // HOD assessment actions
-    Route::post('/assessor/assess/{id}/approve', [AssessorController::class, 'approve'])->name('assessor.approve');
-    Route::post('/assessor/assess/{id}/reject', [AssessorController::class, 'reject'])->name('assessor.reject');
+    Route::post('/assessor/assess/{id}/approve',
+        [AssessorController::class, 'approve'])->name('assessor.approve');
+    Route::post('/assessor/assess/{id}/reject',
+        [AssessorController::class, 'reject'])->name('assessor.reject');
 
     // Comments posted from the assessor dashboard
-    Route::post('/assessor/assess/{id}/comment', [LeaveCommentController::class, 'store'])->name('assessor.comment');
+    Route::post('/assessor/assess/{id}/comment',
+        [LeaveCommentController::class, 'store'])->name('assessor.comment');
 
     // Managing Partner review of HOD applications
-    Route::post('/assessor/mp-review/{id}/approve', [AssessorController::class, 'mpApprove'])->name('assessor.mp-approve');
-    Route::post('/assessor/mp-review/{id}/reject', [AssessorController::class, 'mpReject'])->name('assessor.mp-reject');
+    Route::post('/assessor/mp-review/{id}/approve',
+        [AssessorController::class, 'mpApprove'])->name('assessor.mp-approve');
+    Route::post('/assessor/mp-review/{id}/reject',
+        [AssessorController::class, 'mpReject'])->name('assessor.mp-reject');
 });
 
 // ── Admin routes ──────────────────────────────────────────────────────────────

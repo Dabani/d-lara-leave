@@ -69,6 +69,17 @@
                     </p>
                 </div>
             @endif
+            
+            {{-- Pre-submission Assessment Banner --}}
+            <div id="assessment-banner" class="hidden mb-6 border-l-4 p-4 rounded-lg">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 text-2xl mr-3" id="banner-icon"></div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-lg mb-2" id="banner-title"></h3>
+                        <ul class="list-disc ml-5 space-y-1 text-sm" id="banner-list"></ul>
+                    </div>
+                </div>
+            </div>
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
@@ -79,38 +90,57 @@
                         <div class="mb-6">
                             <label for="leave_type" class="block text-sm font-medium text-gray-700 mb-2">
                                 Leave Type <span class="text-red-500">*</span>
-                            </label>                            
+                            </label>
                             <select id="leave_type" name="leave_type" required
                                     class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                                 <option value="">Select Leave Type</option>
                                 
                                 @if($employee->user->isFemale())
-                                    <option value="Maternity Leave">
+                                    <option value="Maternity Leave" 
+                                            {{ old('leave_type', $leaveRequest->leave_type) === 'Maternity Leave' ? 'selected' : '' }}>
                                         Maternity Leave (Max 98 days)
                                     </option>
                                 @endif
                                 
                                 @if($employee->user->isMale())
-                                    <option value="Paternity Leave">
+                                    <option value="Paternity Leave" 
+                                            {{ old('leave_type', $leaveRequest->leave_type) === 'Paternity Leave' ? 'selected' : '' }}>
                                         Paternity Leave (Max 7 working days)
                                     </option>
                                 @endif
                                 
-                                {{-- Dynamic Annual Leave based on service years --}}
-                                <option value="Annual Leave">
+                                <option value="Annual Leave" 
+                                        {{ old('leave_type', $leaveRequest->leave_type) === 'Annual Leave' ? 'selected' : '' }}>
                                     Annual Leave 
-                                    @if(isset($annualLeaveStats) && $annualLeaveStats['is_eligible'])
-                                        ({{ $annualLeaveStats['entitlement'] }} days/year, max {{ $annualLeaveStats['max_days_per_run'] }} per run)
-                                    @else
-                                        (Not eligible - need 12+ months service)
+                                    @if(isset($annualLeaveStats))
+                                        (Max {{ $annualLeaveStats['max_days_per_run'] ?? 9 }} working days per run)
                                     @endif
                                 </option>
                                 
-                                <option value="Casual Leave">Casual Leave</option>
-                                <option value="Sick Leave">Sick Leave (Medical certificate required)</option>
-                                <option value="Emergency Leave">Emergency Leave</option>
-                                <option value="Study Leave">Study Leave (Supporting document required)</option>
-                                <option value="Without Pay">Without Pay</option>
+                                <option value="Casual Leave" 
+                                        {{ old('leave_type', $leaveRequest->leave_type) === 'Casual Leave' ? 'selected' : '' }}>
+                                    Casual Leave
+                                </option>
+                                
+                                <option value="Sick Leave" 
+                                        {{ old('leave_type', $leaveRequest->leave_type) === 'Sick Leave' ? 'selected' : '' }}>
+                                    Sick Leave (Medical certificate required)
+                                </option>
+                                
+                                <option value="Emergency Leave" 
+                                        {{ old('leave_type', $leaveRequest->leave_type) === 'Emergency Leave' ? 'selected' : '' }}>
+                                    Emergency Leave
+                                </option>
+                                
+                                <option value="Study Leave" 
+                                        {{ old('leave_type', $leaveRequest->leave_type) === 'Study Leave' ? 'selected' : '' }}>
+                                    Study Leave (Supporting document required)
+                                </option>
+                                
+                                <option value="Without Pay" 
+                                        {{ old('leave_type', $leaveRequest->leave_type) === 'Without Pay' ? 'selected' : '' }}>
+                                    Without Pay
+                                </option>
                             </select>
                             @error('leave_type')
                                 <p class="text-red-500 text-xs mt-2">{{ $message }}</p>
@@ -254,15 +284,16 @@
                                 Reason <span class="text-gray-400">(Optional)</span>
                             </label>
                             <textarea id="reason" name="reason" rows="4" 
-                                      placeholder="Please provide a reason for your leave request..."
-                                      class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">{{ old('reason', $leaveRequest->reason) }}</textarea>
+          placeholder="Briefly explain the reason for your leave..."
+          class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">{{ old('reason', $leaveRequest->reason) }}</textarea>
                             @error('reason')
                                 <p class="text-red-500 text-xs mt-2">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                            <button type="submit" 
+                            <button type="submit"
+                                    id="submit-button"
                                     style="background-color:#3f35da" 
                                     class="hover:opacity-90 text-white font-bold py-3 px-6 rounded-md transition duration-150">
                                 Save Changes
@@ -446,6 +477,199 @@
 
         // Calculate on page load
         calculateDuration();
+        
+        function runEditAssessment() {
+            const leaveType = document.getElementById('leave_type').value;
+            const from = document.getElementById('leave_from').value;
+            const to = document.getElementById('leave_to').value;
+            
+            if (!leaveType || !from || !to) {
+                hideBanner();
+                return;
+            }
+            
+            const errors = [];
+            const warnings = [];
+            const oks = [];
+            
+            const fromDate = new Date(from);
+            const toDate = new Date(to);
+            const totalDays = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1;
+            const workingDays = calculateWorkingDays(fromDate, toDate);
+            
+            // Check past dates
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (fromDate < today) {
+                errors.push('Start date cannot be in the past');
+            }
+            
+            // Check date order
+            if (toDate < fromDate) {
+                errors.push('End date must be after start date');
+            }
+            
+            // Type-specific validation
+            switch(leaveType) {
+                case 'Sick Leave':
+                    const medCert = document.getElementById('medical_certificate');
+                    if (!medCert.files || medCert.files.length === 0) {
+                        errors.push('Medical certificate is required for sick leave');
+                    } else {
+                        oks.push('Medical certificate provided');
+                    }
+                    break;
+                    
+                case 'Study Leave':
+                    const suppDoc = document.getElementById('supporting_document');
+                    const isFirstAttempt = document.querySelector('input[name="is_first_attempt"]:checked');
+                    const maxDays = isFirstAttempt && isFirstAttempt.value === '1' ? 5 : 2;
+                    
+                    if (!suppDoc.files || suppDoc.files.length === 0) {
+                        errors.push('Supporting document is required for study leave');
+                    } else {
+                        oks.push('Supporting document provided');
+                    }
+                    
+                    if (totalDays > maxDays) {
+                        errors.push(`Study leave cannot exceed ${maxDays} days (${isFirstAttempt && isFirstAttempt.value === '1' ? 'first attempt' : 'repeat attempt'})`);
+                    } else {
+                        oks.push(`Within ${maxDays}-day limit`);
+                    }
+                    break;
+                    
+                case 'Maternity Leave':
+                    if (totalDays > 98) {
+                        errors.push('Maternity leave cannot exceed 98 days');
+                    } else {
+                        oks.push(`Within 98-day limit (${totalDays} days requested)`);
+                    }
+                    break;
+                    
+                case 'Paternity Leave':
+                    if (workingDays > 7) {
+                        errors.push('Paternity leave cannot exceed 7 working days');
+                    } else {
+                        oks.push(`Within 7-day limit (${workingDays} working days)`);
+                    }
+                    break;
+                    
+                case 'Annual Leave':
+                    if (annualLeaveInfo && annualLeaveInfo.is_eligible) {
+                        const maxPerRun = annualLeaveInfo.max_days_per_run || 9;
+                        const remaining = annualLeaveInfo.remaining_days || 0;
+                        
+                        if (workingDays > maxPerRun) {
+                            errors.push(`Annual leave cannot exceed ${maxPerRun} working days per run`);
+                        }
+                        
+                        if (workingDays > remaining) {
+                            errors.push(`Insufficient balance (${remaining} days remaining, ${workingDays} requested)`);
+                        } else {
+                            oks.push(`Sufficient balance (${remaining} days available)`);
+                        }
+                        
+                        if (!isInRecommendedPeriod(from, to)) {
+                            warnings.push('Outside recommended period (July-September)');
+                        } else {
+                            oks.push('Within recommended period');
+                        }
+                    } else {
+                        errors.push('Not eligible for annual leave (requires 12+ months of service)');
+                    }
+                    break;
+                    
+                case 'Casual Leave':
+                case 'Emergency Leave':
+                    if (annualLeaveInfo) {
+                        const remaining = annualLeaveInfo.remaining_days || 0;
+                        if (workingDays > remaining) {
+                            warnings.push(`This will use your annual leave balance (${remaining} days available)`);
+                        } else {
+                            oks.push(`Will be deducted from annual balance`);
+                        }
+                    }
+                    break;
+            }
+            
+            // Show results
+            if (errors.length > 0) {
+                showBanner('red', '🚫 Cannot Submit', [...errors, ...warnings, ...oks]);
+                document.getElementById('submit-button').disabled = true;
+                document.getElementById('submit-button').classList.add('opacity-50', 'cursor-not-allowed');
+            } else if (warnings.length > 0) {
+                showBanner('amber', '⚠️ Warnings', [...warnings, ...oks]);
+                document.getElementById('submit-button').disabled = false;
+                document.getElementById('submit-button').classList.remove('opacity-50', 'cursor-not-allowed');
+            } else if (oks.length > 0) {
+                showBanner('green', '✅ Ready to Submit', oks);
+                document.getElementById('submit-button').disabled = false;
+                document.getElementById('submit-button').classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                hideBanner();
+            }
+        }
+
+        function showBanner(color, title, items) {
+            const banner = document.getElementById('assessment-banner');
+            const icon = document.getElementById('banner-icon');
+            const titleEl = document.getElementById('banner-title');
+            const list = document.getElementById('banner-list');
+            
+            // Color schemes
+            const colors = {
+                red: 'border-red-400 bg-red-50',
+                amber: 'border-yellow-400 bg-yellow-50',
+                green: 'border-green-400 bg-green-50'
+            };
+            
+            // Update classes
+            banner.className = `mb-6 border-l-4 p-4 rounded-lg ${colors[color]}`;
+            banner.classList.remove('hidden');
+            
+            // Update content
+            icon.textContent = color === 'red' ? '🚫' : color === 'amber' ? '⚠️' : '✅';
+            titleEl.textContent = title;
+            
+            list.innerHTML = items.map(item => {
+                const itemColor = item.includes('Insufficient') || item.includes('cannot exceed') || item.includes('required') 
+                    ? 'text-red-700'
+                    : item.includes('Outside') || item.includes('Warning')
+                    ? 'text-yellow-700'
+                    : 'text-green-700';
+                return `<li class="${itemColor}">${item}</li>`;
+            }).join('');
+        }
+
+        function hideBanner() {
+            document.getElementById('assessment-banner').classList.add('hidden');
+            document.getElementById('submit-button').disabled = false;
+            document.getElementById('submit-button').classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        // Hook into existing events
+        const originalCalculate = calculateDuration;
+        calculateDuration = function() {
+            originalCalculate();
+            runEditAssessment();
+        };
+
+        // Run on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            runEditAssessment();
+        });
+
+        // Add event listeners
+        document.getElementById('leave_type').addEventListener('change', runEditAssessment);
+        document.getElementById('leave_from').addEventListener('change', runEditAssessment);
+        document.getElementById('leave_to').addEventListener('change', runEditAssessment);
+
+        // Also run when files are selected
+        const medCertInput = document.getElementById('medical_certificate');
+        const suppDocInput = document.getElementById('supporting_document');
+        if (medCertInput) medCertInput.addEventListener('change', runEditAssessment);
+        if (suppDocInput) suppDocInput.addEventListener('change', runEditAssessment);
+
     </script>
     @endpush
 </x-app-layout>

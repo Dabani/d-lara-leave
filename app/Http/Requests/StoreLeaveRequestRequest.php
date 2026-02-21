@@ -67,7 +67,7 @@ class StoreLeaveRequestRequest extends FormRequest
             // Flag pre-annual emergency leave
             if ($this->leave_type === 'Emergency Leave') {
                 $employee = auth()->user()->employee;
-                if ($employee && !$employee->isAnnualLeaveEligible()) {
+                if ($employee && !$employee->isEligibleForAnnualLeave()) {
                     // Mark as pre-annual — allowed but will be deducted later
                     $this->merge(['is_pre_annual_emergency' => true]);
                 }

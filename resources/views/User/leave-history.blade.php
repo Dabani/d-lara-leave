@@ -1,11 +1,44 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Leave History') }}
-        </h2>
+        <div class="flex items-center justify-between gap-4">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Leave History') }}
+            </h2>
+            
+            {{-- Filter Form in Header --}}
+            <form method="GET" action="{{ route('leave-history') }}" class="flex items-center gap-3">
+                <div>
+                    <select name="year" id="year" class="text-sm rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">All Years</option>
+                        @foreach($years as $year)
+                            <option value="{{ $year }}" {{ $yearFilter == $year ? 'selected' : '' }}>{{ $year }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                
+                <div>
+                    <select name="status" id="status" class="text-sm rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">All Statuses</option>
+                        <option value="pending" {{ $statusFilter == 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="Approved" {{ $statusFilter == 'Approved' ? 'selected' : '' }}>Approved</option>
+                        <option value="Rejected" {{ $statusFilter == 'Rejected' ? 'selected' : '' }}>Rejected</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition">
+                    Filter
+                </button>
+                
+                @if($yearFilter || $statusFilter)
+                    <a href="{{ route('leave-history') }}" class="px-3 py-2 bg-gray-200 text-gray-700 text-sm font-semibold rounded-md hover:bg-gray-300 transition">
+                        Reset
+                    </a>
+                @endif
+            </form>
+        </div>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             {{-- Messages --}}
             @if(session('success'))
@@ -32,40 +65,6 @@
                     <div class="text-sm text-gray-600">Rejected</div>
                     <div class="text-2xl font-bold text-red-600">{{ $stats['rejected'] }}</div>
                 </div>
-            </div>
-
-            {{-- Filters --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6 p-4">
-                <form method="GET" action="{{ route('leave-history') }}" class="flex flex-wrap gap-4">
-                    <div>
-                        <label for="year" class="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                        <select name="year" id="year" class="rounded-md border-gray-300 shadow-sm">
-                            <option value="">All Years</option>
-                            @foreach($years as $year)
-                                <option value="{{ $year }}" {{ $yearFilter == $year ? 'selected' : '' }}>{{ $year }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <select name="status" id="status" class="rounded-md border-gray-300 shadow-sm">
-                            <option value="">All Statuses</option>
-                            <option value="pending" {{ $statusFilter == 'pending' ? 'selected' : '' }}>Pending</option>
-                            <option value="Approved" {{ $statusFilter == 'Approved' ? 'selected' : '' }}>Approved</option>
-                            <option value="Rejected" {{ $statusFilter == 'Rejected' ? 'selected' : '' }}>Rejected</option>
-                        </select>
-                    </div>
-                    
-                    <div class="flex items-end">
-                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-                            Apply Filters
-                        </button>
-                        <a href="{{ route('leave-history') }}" class="ml-2 px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
-                            Reset
-                        </a>
-                    </div>
-                </form>
             </div>
 
             {{-- Leave History Table --}}

@@ -1,8 +1,30 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Manage Employee') }}
-        </h2>
+        <div class="flex justify-between items-center py-2"> <!-- Reduced padding here -->
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Manage Employee') }}
+            </h2>
+            
+            <!-- Search and Export Container - aligned to middle -->
+            <div class="flex items-center gap-2">
+                <!-- Search Box Component -->
+                <div class="relative">
+                    <x-search-box 
+                        route="{{ route('admin.manage-employee') }}" 
+                        placeholder="Search by name or email..."
+                        :value="request('search')" />
+                </div>
+                
+                <!-- Export Button -->
+                <a href="{{ route('admin.export-employees', ['type' => 'all']) }}" 
+                   class="inline-flex items-center justify-center px-4 py-2.5 bg-green-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 whitespace-nowrap h-[42px]"> <!-- Fixed height to match search button -->
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export to Excel
+                </a>
+            </div>
+        </div>
     </x-slot>
 
     @if(session('success'))
@@ -31,7 +53,7 @@
     @endif
 
     <!-- Export Button -->
-    <div class="py-4">
+    <!-- <div class="py-4">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col sm:flex-row gap-2 justify-end">
                 <a href="{{ route('admin.export-employees', ['type' => 'all']) }}" 
@@ -43,185 +65,43 @@
                 </a>
             </div>
         </div>
-    </div>
+    </div> -->
 
-    <!-- Pending Requests -->
+    <!-- Tab Navigation -->
     <div class="py-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-4 sm:p-6 text-gray-900">
-                    <div class="mb-4">
-                        <h2 class="font-semibold text-lg sm:text-xl text-gray-800 leading-tight">
-                            {{ __('Pending Request') }}
-                        </h2>
-                    </div>
-
-                    <div class="bg-white rounded-lg">
-                        <!-- Mobile View -->
-                        <div class="block sm:hidden space-y-4">
-                            @if($pendingUsers->isEmpty())
-                                <div class="text-center py-4 text-gray-500">No pending request</div>
-                            @else
-                                @foreach($pendingUsers as $pendingUser)
-                                    <div class="border rounded-lg p-4 bg-gray-50">
-                                        <div class="mb-2">
-                                            <span class="font-semibold text-gray-700">Name:</span>
-                                            <span class="text-gray-900">{{ $pendingUser->name }}</span>
-                                        </div>
-                                        <div class="mb-2">
-                                            <span class="font-semibold text-gray-700">Email:</span>
-                                            <span class="text-gray-900 text-sm">{{ $pendingUser->email }}</span>
-                                        </div>
-                                        <form id="approve-form-{{ $pendingUser->id }}" action="{{ route('admin.approve-employee', $pendingUser->id) }}" method="POST" class="mt-3">
-                                            @csrf
-                                            
-                                            {{-- Gender Selection --}}
-                                            <div class="mb-3">
-                                                <label class="block text-sm font-semibold text-gray-700 mb-1">
-                                                    Gender <span class="text-red-500">*</span>
-                                                </label>
-                                                <select name="gender" required class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                                                    <option value="">Select Gender</option>
-                                                    <option value="male">Male</option>
-                                                    <option value="female">Female</option>
-                                                    <option value="other">Other</option>
-                                                </select>
-                                            </div>
-                                            
-                                            {{-- Hire Date Input --}}
-                                            <div class="mb-3">
-                                                <label class="block text-sm font-semibold text-gray-700 mb-1">
-                                                    Hire Date <span class="text-red-500">*</span>
-                                                </label>
-                                                <input type="date" 
-                                                    name="hire_date" 
-                                                    required 
-                                                    max="{{ date('Y-m-d') }}"
-                                                    class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                                                <p class="text-xs text-gray-500 mt-1">Used to determine annual leave eligibility</p>
-                                            </div>
-                                            
-                                            {{-- Department Selection --}}
-                                            <div class="mb-3">
-                                                <label class="block text-sm font-semibold text-gray-700 mb-1">
-                                                    Department <span class="text-red-500">*</span>
-                                                </label>
-                                                <select name="department" required class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                                                    <option value="">Select Department</option>
-                                                    @foreach($departments as $dept)
-                                                        <option value="{{ $dept->name }}">{{ $dept->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                            
-                                            <button onclick="return validateAndSubmit({{ $pendingUser->id }});" 
-                                                    type="button"
-                                                    style="background-color: #68D391" 
-                                                    class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition">
-                                                Approve
-                                            </button>
-                                        </form>
-                                    </div>
-                                @endforeach
-                            @endif
-                        </div>
-
-                        <!-- Desktop View -->
-                        <div class="hidden sm:block overflow-x-auto">
-                            <table class="w-full table-auto">
-                                <thead>
-                                <tr class="bg-gray-200">
-                                    <th class="px-4 py-2 text-center">#Sl No</th>
-                                    <th class="px-4 py-2 text-start">Name</th>
-                                    <th class="px-4 py-2 text-start">Email</th>
-                                    <th class="px-4 py-2 text-center">Gender</th>
-                                    <th class="px-4 py-2 text-center">Hire Date</th>
-                                    <th class="px-4 py-2 text-center">Department</th>
-                                    <th class="px-4 py-2 text-center">Action</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                @if($pendingUsers->isEmpty())
-                                    <tr>
-                                        <td colspan="7" class="text-center py-4">No pending request</td>
-                                    </tr>
-                                @endif
-                                @foreach($pendingUsers as $pendingUser)
-                                    {{-- Hidden form for this row --}}
-                                    <form id="approve-form-{{ $pendingUser->id }}" action="{{ route('admin.approve-employee', $pendingUser->id) }}" method="POST" style="display: none;">
-                                        @csrf
-                                    </form>
-                                    
-                                    <tr class="hover:bg-gray-100">
-                                        <td class="px-4 py-2 text-center">{{ ($pendingUsers->currentPage()-1) * $pendingUsers->perPage() + $loop->iteration }}</td>
-                                        <td class="px-4 py-2">{{ $pendingUser->name }}</td>
-                                        <td class="px-4 py-2">{{ $pendingUser->email }}</td>
-                                        <td class="px-4 py-2 text-center">
-                                            <select name="gender" 
-                                                    form="approve-form-{{ $pendingUser->id }}"
-                                                    required 
-                                                    class="p-1 border border-gray-300 rounded-md text-sm w-28" 
-                                                    title="Select Gender">
-                                                <option value="">Gender</option>
-                                                <option value="male">Male</option>
-                                                <option value="female">Female</option>
-                                                <option value="other">Other</option>
-                                            </select>
-                                        </td>
-                                        <td class="px-4 py-2 text-center">
-                                            <input type="date" 
-                                                name="hire_date" 
-                                                form="approve-form-{{ $pendingUser->id }}"
-                                                required 
-                                                max="{{ date('Y-m-d') }}"
-                                                class="p-1 border border-gray-300 rounded-md text-sm w-36" 
-                                                title="Hire Date">
-                                        </td>
-                                        <td class="px-4 py-2 text-center">
-                                            <select name="department" 
-                                                    form="approve-form-{{ $pendingUser->id }}"
-                                                    required 
-                                                    class="p-1 border border-gray-300 rounded-md text-sm">
-                                                <option value="">Select</option>
-                                                @foreach($departments as $dept)
-                                                    <option value="{{ $dept->name }}">{{ $dept->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <td class="px-4 py-2 text-center">
-                                            <button onclick="return validateAndSubmit({{ $pendingUser->id }});" 
-                                                    type="button"
-                                                    style="background-color: #68D391" 
-                                                    class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition">
-                                                Approve
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="mt-4">
-                        {{ $pendingUsers->onEachSide(1)->links() }}
-                    </div>
+                <div class="border-b border-gray-200 bg-gray-50">
+                    <nav class="flex px-6" aria-label="Tabs">
+                        <button onclick="showTab('approved')" 
+                                id="tab-approved"
+                                class="employee-tab border-b-2 border-indigo-500 text-indigo-600 py-4 px-6 text-sm font-medium">
+                            ✅ Approved Employees
+                            <span class="ml-2 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold">
+                                {{ $activeEmployees->total() }}
+                            </span>
+                        </button>
+                        <button onclick="showTab('pending')" 
+                                id="tab-pending"
+                                class="employee-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-4 px-6 text-sm font-medium">
+                            ⏳ Pending Requests
+                            <span class="ml-2 bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-bold">
+                                {{ $pendingUsers->total() }}
+                            </span>
+                        </button>
+                        <button onclick="showTab('blocked')" 
+                                id="tab-blocked"
+                                class="employee-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-4 px-6 text-sm font-medium">
+                            🔴 Blocked Employees
+                            <span class="ml-2 bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-bold">
+                                {{ $blockedEmployees->total() }}
+                            </span>
+                        </button>
+                    </nav>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Active Employees -->
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-4 sm:p-6 text-gray-900">
-                    <div class="mb-4">
-                        <h2 class="font-semibold text-lg sm:text-xl text-gray-800 leading-tight">
-                            {{ __('Active Employees') }}
-                        </h2>
-                    </div>
-
+                <!-- Tab Content: Approved Employees -->
+                <div id="content-approved" class="employee-tab-content p-6">
                     <div class="bg-white rounded-lg">
                         <!-- Mobile View -->
                         <div class="block sm:hidden space-y-4">
@@ -232,32 +112,39 @@
                                     <div class="border rounded-lg p-4 bg-gray-50">
                                         <div class="mb-2">
                                             <span class="font-semibold text-gray-700">Name:</span>
-                                            <span class="text-gray-900">{{ $employee->name }}</span>
+                                            <span class="text-gray-900">{{ $employee->user->name }}</span>
                                         </div>
                                         <div class="mb-2">
                                             <span class="font-semibold text-gray-700">Email:</span>
-                                            <span class="text-gray-900 text-sm">{{ $employee->email }}</span>
+                                            <span class="text-gray-900 text-sm">{{ $employee->user->email }}</span>
                                         </div>
                                         <div class="mb-2">
                                             <span class="font-semibold text-gray-700">Gender:</span>
-                                            <span class="text-gray-900">{{ ucfirst($employee->gender ?? 'Not set') }}</span>
+                                            <span class="text-gray-900">{{ ucfirst($employee->user->gender ?? 'Not set') }}</span>
                                         </div>
                                         <div class="mb-2">
                                             <span class="font-semibold text-gray-700">Department:</span>
-                                            <span class="text-gray-900">{{ $employee->employee->department }}</span>
+                                            <span class="text-gray-900">{{ $employee->department ?? 'No Department' }}</span>
                                         </div>
                                         <div class="mb-2">
                                             <span class="font-semibold text-gray-700">Hire Date:</span>
-                                            <span class="text-gray-900">{{ $employee->employee->hire_date ? \Carbon\Carbon::parse($employee->employee->hire_date)->format('M d, Y') : 'Not set' }}</span>
+                                            <span class="text-gray-900">{{ $employee->hire_date ? $employee->hire_date->format('d/m/Y') : 'Not set' }}</span>
                                         </div>
                                         <div class="flex gap-2 mt-3">
-                                            <button onclick="openEditModal({{ $employee->employee->id }}, '{{ $employee->name }}', '{{ $employee->employee->department }}', '{{ $employee->gender ?? '' }}', '{{ $employee->employee->hire_date ?? '' }}')" 
+                                            <button onclick="openEditModal(
+                                                {{ $employee->id }},
+                                                '{{ addslashes($employee->user->name) }}',
+                                                '{{ $employee->user->gender ?? '' }}',
+                                                '{{ $employee->hire_date ? $employee->hire_date->format('Y-m-d') : '' }}',
+                                                '{{ addslashes($employee->department ?? '') }}',
+                                                '{{ $employee->profile_image ?? '' }}'
+                                            )" 
                                                     style="background-color:#3773B8" 
                                                     class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition">
                                                 Edit
                                             </button>
                                             <a href="{{ route('admin.block-employee', $employee->id) }}" 
-                                               onclick="return confirm('Are you sure you want to block {{ $employee->name }}?')" 
+                                               onclick="return confirm('Are you sure you want to block {{ $employee->user->name }}?')" 
                                                class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
                                                 Block
                                             </a>
@@ -290,13 +177,13 @@
                                 @foreach($activeEmployees as $employee)
                                     <tr class="hover:bg-gray-100">
                                         <td class="px-4 py-2 text-center">{{ ($activeEmployees->currentPage()-1) * $activeEmployees->perPage() + $loop->iteration }}</td>
-                                        <td class="px-4 py-2">{{ $employee->name }}</td>
-                                        <td class="px-4 py-2">{{ $employee->email }}</td>
-                                        <td class="px-4 py-2 text-center">{{ ucfirst($employee->gender ?? 'Not set') }}</td>
+                                        <td class="px-4 py-2">{{ $employee->user->name }}</td>
+                                        <td class="px-4 py-2">{{ $employee->user->email }}</td>
+                                        <td class="px-4 py-2 text-center">{{ ucfirst($employee->user->gender ?? 'Not set') }}</td>
                                         <td class="px-4 py-2 text-center">
-                                            {{ $employee->employee->hire_date ? \Carbon\Carbon::parse($employee->employee->hire_date)->format('M d, Y') : 'Not set' }}
+                                            {{ $employee->hire_date ? $employee->hire_date->format('d/m/Y') : 'Not set' }}
                                         </td>
-                                        <td class="px-4 py-2 text-center">{{ $employee->employee->department }}</td>
+                                        <td class="px-4 py-2 text-center">{{ $employee->department }}</td>
                                         <td class="px-4 py-2 text-center">
                                             <div class="flex gap-2 justify-center">
                                                 {{-- Role Management Button --}}
@@ -308,15 +195,22 @@
                                                 )" class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 font-medium">
                                                     Role: {{ ucfirst(str_replace('_', ' ', $employee->user->role)) }}
                                                 </button>
-
-                                                <button onclick="openEditModal({{ $employee->employee->id }}, '{{ $employee->name }}', '{{ $employee->employee->department }}', '{{ $employee->gender ?? '' }}', '{{ $employee->employee->hire_date ?? '' }}')" 
-                                                        style="background-color:#3773B8" 
-                                                        class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition">
-                                                    Edit
+                                                <button onclick="openEditModal(
+                                                        {{ $employee->id }},
+                                                        '{{ addslashes($employee->user->name) }}',
+                                                        '{{ $employee->user->gender ?? '' }}',
+                                                        '{{ $employee->hire_date ? $employee->hire_date->format('Y-m-d') : '' }}',
+                                                        '{{ addslashes($employee->department ?? '') }}',
+                                                        '{{ $employee->profile_image ?? '' }}'
+                                                    )"
+                                                    style="background-color:#3773B8"
+                                                    class="text-xs text-white px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-medium">
+                                                    Edit Profile
                                                 </button>
+
                                                 <a href="{{ route('admin.block-employee', $employee->id) }}" 
-                                                   onclick="return confirm('Are you sure you want to block {{ $employee->name }}?')" 
-                                                   class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                                   onclick="return confirm('Are you sure you want to block {{ $employee->user->name }}?')" 
+                                                   class="bg-red-500 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded">
                                                     Block
                                                 </a>
                                             </div>
@@ -326,27 +220,156 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>
 
-                    <div class="mt-4">
-                        {{ $activeEmployees->onEachSide(1)->links() }}
+                        <div class="mt-4">
+                            {{ $activeEmployees->onEachSide(1)->links() }}
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Blocked Employees -->
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-4 sm:p-6 text-gray-900">
-                    <div class="mb-4">
-                        <h2 class="font-semibold text-lg sm:text-xl text-gray-800 leading-tight">
-                            {{ __('Blocked Employees') }}
-                        </h2>
+                <!-- Tab Content: Pending Requests -->
+                <div id="content-pending" class="employee-tab-content hidden p-6">
+                    <div class="bg-white rounded-lg">
+                        <!-- Mobile View -->
+                        <div class="block sm:hidden space-y-4">
+                            @if($pendingUsers->isEmpty())
+                                <div class="text-center py-4 text-gray-500">No pending request</div>
+                            @else
+                                @foreach($pendingUsers as $pendingUser)
+                                    <div class="border rounded-lg p-4 bg-gray-50">
+                                        <div class="mb-2">
+                                            <span class="font-semibold text-gray-700">Name:</span>
+                                            <span class="text-gray-900">{{ $pendingUser->name }}</span>
+                                        </div>
+                                        <div class="mb-2">
+                                            <span class="font-semibold text-gray-700">Email:</span>
+                                            <span class="text-gray-900 text-sm">{{ $pendingUser->email }}</span>
+                                        </div>
+                                        <form action="{{ route('admin.approve-employee', $pendingUser->id) }}" method="POST" class="mt-3">
+                                            @csrf
+                                            
+                                            <div class="mb-3">
+                                                <label class="block text-sm font-semibold text-gray-700 mb-1">
+                                                    Gender <span class="text-red-500">*</span>
+                                                </label>
+                                                <select name="gender" required class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                                                    <option value="">Select Gender</option>
+                                                    <option value="male">Male</option>
+                                                    <option value="female">Female</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label class="block text-sm font-semibold text-gray-700 mb-1">
+                                                    Hire Date <span class="text-red-500">*</span>
+                                                </label>
+                                                <input type="date" 
+                                                    name="hire_date" 
+                                                    required 
+                                                    max="{{ date('Y-m-d') }}"
+                                                    class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                                                <p class="text-xs text-gray-500 mt-1">Used to determine annual leave eligibility</p>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label class="block text-sm font-semibold text-gray-700 mb-1">
+                                                    Department <span class="text-red-500">*</span>
+                                                </label>
+                                                <select name="department" required class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                                                    <option value="">Select Department</option>
+                                                    @foreach($departments as $dept)
+                                                        <option value="{{ $dept->name }}">{{ $dept->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            
+                                            <button type="submit"
+                                                    style="background-color: #68D391" 
+                                                    class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition">
+                                                Approve Employee
+                                            </button>
+                                        </form>
+                                    </div>
+                                @endforeach
+                            @endif
+                        </div>
+
+                        <!-- Desktop View -->
+                        <div class="hidden sm:block overflow-x-auto">
+                            <table class="w-full table-auto">
+                                <thead>
+                                <tr class="bg-gray-200">
+                                    <th class="px-4 py-2 text-center">#Sl No</th>
+                                    <th class="px-4 py-2 text-start">Name</th>
+                                    <th class="px-4 py-2 text-start">Email</th>
+                                    <th class="px-4 py-2 text-center">Gender</th>
+                                    <th class="px-4 py-2 text-center">Hire Date</th>
+                                    <th class="px-4 py-2 text-center">Department</th>
+                                    <th class="px-4 py-2 text-center">Action</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @if($pendingUsers->isEmpty())
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4">No pending request</td>
+                                    </tr>
+                                @endif
+                                @foreach($pendingUsers as $pendingUser)
+                                    <tr class="hover:bg-gray-100">
+                                        <form action="{{ route('admin.approve-employee', $pendingUser->id) }}" method="POST">
+                                            @csrf
+                                            <td class="px-4 py-2 text-center">{{ ($pendingUsers->currentPage()-1) * $pendingUsers->perPage() + $loop->iteration }}</td>
+                                            <td class="px-4 py-2">{{ $pendingUser->name }}</td>
+                                            <td class="px-4 py-2">{{ $pendingUser->email }}</td>
+                                            <td class="px-4 py-2 text-center">
+                                                <select name="gender" 
+                                                        required 
+                                                        class="p-1 border border-gray-300 rounded-md text-sm w-28">
+                                                    <option value="">Gender</option>
+                                                    <option value="male">Male</option>
+                                                    <option value="female">Female</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-4 py-2 text-center">
+                                                <input type="date" 
+                                                    name="hire_date" 
+                                                    required 
+                                                    max="{{ date('Y-m-d') }}"
+                                                    class="p-1 border border-gray-300 rounded-md text-sm w-36">
+                                            </td>
+                                            <td class="px-4 py-2 text-center">
+                                                <select name="department" 
+                                                        required 
+                                                        class="p-1 border border-gray-300 rounded-md text-sm">
+                                                    <option value="">Select</option>
+                                                    @foreach($departments as $dept)
+                                                        <option value="{{ $dept->name }}">{{ $dept->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </td>
+                                            <td class="px-4 py-2 text-center">
+                                                <button type="submit"
+                                                        class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition">
+                                                    ✓ Approve
+                                                </button>
+                                            </td>
+                                        </form>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4">
+                            {{ $pendingUsers->onEachSide(1)->links() }}
+                        </div>
                     </div>
+                </div>
 
+                <!-- Tab Content: Blocked Employees -->
+                <div id="content-blocked" class="employee-tab-content hidden p-6">
                     <div class="bg-white rounded-lg">
                         <!-- Mobile View -->
                         <div class="block sm:hidden space-y-4">
@@ -357,19 +380,19 @@
                                     <div class="border rounded-lg p-4 bg-gray-50">
                                         <div class="mb-2">
                                             <span class="font-semibold text-gray-700">Name:</span>
-                                            <span class="text-gray-900">{{ $employee->name }}</span>
+                                            <span class="text-gray-900">{{ $employee->user->name }}</span>
                                         </div>
                                         <div class="mb-2">
                                             <span class="font-semibold text-gray-700">Email:</span>
-                                            <span class="text-gray-900 text-sm">{{ $employee->email }}</span>
+                                            <span class="text-gray-900 text-sm">{{ $employee->user->email }}</span>
                                         </div>
                                         <div class="mb-2">
                                             <span class="font-semibold text-gray-700">Department:</span>
-                                            <span class="text-gray-900">{{ $employee->employee->department }}</span>
+                                            <span class="text-gray-900">{{ $employee->department }}</span>
                                         </div>
                                         <div class="mt-3">
                                             <a href="{{ route('admin.unblock-employee', $employee->id) }}" 
-                                               onclick="return confirm('Are you sure you want to unblock {{ $employee->name }}?')" 
+                                               onclick="return confirm('Are you sure you want to unblock {{ $employee->user->name }}?')" 
                                                style="background-color: #68D391" 
                                                class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition inline-block">
                                                 Unblock
@@ -401,12 +424,12 @@
                                 @foreach($blockedEmployees as $employee)
                                     <tr class="hover:bg-gray-100">
                                         <td class="px-4 py-2 text-center">{{ ($blockedEmployees->currentPage()-1) * $blockedEmployees->perPage() + $loop->iteration }}</td>
-                                        <td class="px-4 py-2">{{ $employee->name }}</td>
-                                        <td class="px-4 py-2">{{ $employee->email }}</td>
-                                        <td class="px-4 py-2 text-center">{{ $employee->employee->department }}</td>
+                                        <td class="px-4 py-2">{{ $employee->user->name }}</td>
+                                        <td class="px-4 py-2">{{ $employee->user->email }}</td>
+                                        <td class="px-4 py-2 text-center">{{ $employee->department }}</td>
                                         <td class="px-4 py-2 text-center">
                                             <a href="{{ route('admin.unblock-employee', $employee->id) }}" 
-                                               onclick="return confirm('Are you sure you want to unblock {{ $employee->name }}?')" 
+                                               onclick="return confirm('Are you sure you want to unblock {{ $employee->user->name }}?')" 
                                                style="background-color: #68D391" 
                                                class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition">
                                                 Unblock
@@ -417,221 +440,241 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>
 
-                    <div class="mt-4">
-                        {{ $blockedEmployees->onEachSide(1)->links() }}
+                        <div class="mt-4">
+                            {{ $blockedEmployees->onEachSide(1)->links() }}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Edit Employee Modal -->
-    <div id="editModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50">
-        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div class="mt-3">
-                {{-- HEADER --}}
-                <div class="flex justify-between items-center pb-3 mb-4 border-b">
-                    <h3 class="text-xl font-semibold text-gray-900">Edit Employee Profile</h3>
-                    <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">
-                        &times;
-                    </button>
-                </div>
+<!-- Edit Employee Modal -->
+<div id="editEmployeeModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+        
+        {{-- Header --}}
+        <div class="flex items-center justify-between mb-4 pb-3 border-b">
+            <h3 class="text-xl font-semibold text-gray-900">Edit Employee Profile</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
 
-                {{-- FORM --}}
-                <form id="editEmployeeForm" method="POST" enctype="multipart/form-data">
-                    @csrf
-                    
-                    {{-- FORM CONTENT --}}
-                    <div class="space-y-4">
-                        <div>
-                            <label for="employeeName" class="block text-gray-700 text-sm font-bold mb-2">Employee Name</label>
-                            <input type="text" 
-                                id="employeeName" 
-                                readonly 
-                                class="w-full p-2 border border-gray-300 rounded-md bg-gray-100 text-sm">
+        {{-- Form --}}
+        <form id="editEmployeeForm" method="POST" enctype="multipart/form-data">
+            @csrf
+            <input type="hidden" id="edit_employee_id" name="employee_id">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {{-- Left Column - Form Fields --}}
+                <div class="space-y-4">
+                    {{-- Employee Name --}}
+                    <div class="flex items-center">
+                        <label class="w-1/3 text-sm font-medium text-gray-700">
+                            Employee Name
+                        </label>
+                        <div class="w-2/3">
+                            <input type="text" id="edit_employee_name" disabled
+                                   class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700">
                         </div>
+                    </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label for="editGender" class="block text-gray-700 text-sm font-bold mb-2">Gender</label>
-                                <select name="gender" 
-                                    id="editGender" 
-                                    class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                                    <option value="">Select Gender</option>
-                                    <option value="male">Male</option>
-                                    <option value="female">Female</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label for="editHireDate" class="block text-gray-700 text-sm font-bold mb-2">Hire Date</label>
-                                <input type="date" 
-                                    name="hire_date" 
-                                    id="editHireDate" 
-                                    max="{{ date('Y-m-d') }}"
-                                    class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                            </div>
+                    {{-- Gender --}}
+                    <div class="flex items-center">
+                        <label class="w-1/3 text-sm font-medium text-gray-700">
+                            Gender <span class="text-red-500">*</span>
+                        </label>
+                        <div class="w-2/3">
+                            <select id="edit_gender" name="gender" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-300">
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
                         </div>
+                    </div>
 
-                        <div>
-                            <label for="editDepartment" class="block text-gray-700 text-sm font-bold mb-2">Department</label>
-                            <select name="department" 
-                                id="editDepartment" 
-                                class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                    {{-- Hire Date --}}
+                    <div class="flex items-center">
+                        <label class="w-1/3 text-sm font-medium text-gray-700">
+                            Hire Date
+                        </label>
+                        <div class="w-2/3">
+                            <input type="date" id="edit_hire_date" name="hire_date"
+                                   max="{{ date('Y-m-d') }}"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-300">
+                        </div>
+                    </div>
+
+                    {{-- Department --}}
+                    <div class="flex items-center">
+                        <label class="w-1/3 text-sm font-medium text-gray-700">
+                            Department <span class="text-red-500">*</span>
+                        </label>
+                        <div class="w-2/3">
+                            <select id="edit_department" name="department" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-300">
+                                <option value="">Select Department</option>
                                 @foreach($departments as $dept)
                                     <option value="{{ $dept->name }}">{{ $dept->name }}</option>
                                 @endforeach
                             </select>
                         </div>
+                    </div>
+                </div>
 
-                        <div>
-                            <label for="profileImage" class="block text-gray-700 text-sm font-bold mb-2">Profile Image</label>
-                            <input type="file" 
-                                name="profile_image" 
-                                id="profileImage" 
-                                accept="image/*,.webp" 
-                                class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                {{-- Right Column - Profile Image --}}
+                <div class="space-y-4">
+                    {{-- Current Profile Image Preview --}}
+                    <div class="flex items-start">
+                        <label class="w-1/3 text-sm font-medium text-gray-700">
+                            Profile Image
+                        </label>
+                        <div class="w-2/3">
+                            {{-- Image Preview Container --}}
+                            <div id="current_image_preview" class="mb-3 flex justify-center">
+                                {{-- Current image will be shown here via JavaScript --}}
+                            </div>
+                            
+                            {{-- File Input --}}
+                            <input type="file" id="edit_profile_image" name="profile_image"
+                                   accept="image/jpeg,image/png,image/jpg,image/gif,image/webp"
+                                   onchange="previewNewImage(event)"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-300 text-sm">
                             <p class="text-xs text-gray-500 mt-1">JPG, PNG, GIF, WebP (Max 2MB)</p>
+                            
+                            {{-- New image preview --}}
+                            <div id="new_image_preview" class="mt-3 hidden">
+                                <p class="text-xs text-gray-500 mb-1">New image preview:</p>
+                                <div class="flex justify-center">
+                                    <img id="new_image" src="" alt="New profile preview"
+                                         class="w-24 h-24 rounded-full object-cover border-2 border-blue-500">
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    {{-- BUTTONS --}}
-                    <div class="flex gap-3 justify-end mt-6 pt-4 border-t">
-                        <button type="button" 
-                                onclick="closeEditModal()" 
-                                class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition">
-                            Cancel
-                        </button>
-                        <button type="submit" 
-                                style="background-color:#3773B8" 
-                                class="px-4 py-2 text-white rounded-md hover:opacity-90 transition">
-                            Save Changes
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
-        </div>
+
+            {{-- Buttons --}}
+            <div class="flex gap-3 justify-end mt-6 pt-4 border-t">
+                <button type="button" onclick="closeEditModal()"
+                        class="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-semibold">
+                    Save Changes
+                </button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <script>
-        function openEditModal(employeeId, employeeName, currentDepartment, currentGender, currentHireDate) {
-            const form = document.getElementById('editEmployeeForm');
-            form.action = `/admin/update-employee-profile/${employeeId}`;
-            
-            document.getElementById('employeeName').value = employeeName;
-            document.getElementById('editGender').value = currentGender || '';
-            document.getElementById('editHireDate').value = currentHireDate || '';
-            document.getElementById('editDepartment').value = currentDepartment;
-            
-            document.getElementById('editModal').classList.remove('hidden');
-            
-            // Prevent body scroll when modal is open
-            document.body.style.overflow = 'hidden';
+<script>
+    /**
+     * Default user SVG for when no profile image is available
+     */
+    function getDefaultUserSVG() {
+        return `
+            <div class="flex justify-center">
+                <div class="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                    <svg class="w-12 h-12 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Open the edit modal and pre-fill with employee data
+     */
+    function openEditModal(employeeId, name, gender, hireDate, department, profileImage) {
+        // Set form action URL
+        document.getElementById('editEmployeeForm').action = `/admin/update-employee-profile/${employeeId}`;
+        
+        // Pre-fill fields
+        document.getElementById('edit_employee_id').value = employeeId;
+        document.getElementById('edit_employee_name').value = name;
+        document.getElementById('edit_gender').value = gender ? gender.toLowerCase() : '';
+        document.getElementById('edit_hire_date').value = hireDate || '';
+        document.getElementById('edit_department').value = department || '';
+        
+        // Handle current profile image
+        const currentImagePreview = document.getElementById('current_image_preview');
+        
+        if (profileImage) {
+            // Show actual image if available
+            currentImagePreview.innerHTML = `
+                <div class="flex justify-center">
+                    <img src="/storage/${profileImage}" alt="Current profile"
+                        class="w-24 h-24 rounded-full object-cover border-2 border-gray-300">
+                </div>
+            `;
+        } else {
+            // Show default SVG if no image
+            currentImagePreview.innerHTML = getDefaultUserSVG();
         }
+        
+        // Reset new image preview
+        document.getElementById('new_image_preview').classList.add('hidden');
+        document.getElementById('edit_profile_image').value = '';
+        
+        // Show modal
+        document.getElementById('editEmployeeModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
 
-        function closeEditModal() {
-            document.getElementById('editModal').classList.add('hidden');
-            document.getElementById('editEmployeeForm').reset();
-            
-            // Re-enable body scroll
-            document.body.style.overflow = 'auto';
+    /**
+     * Close the edit modal
+     */
+    function closeEditModal() {
+        document.getElementById('editEmployeeModal').classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+
+    /**
+     * Preview new image before upload
+     */
+    function previewNewImage(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('new_image').src = e.target.result;
+                document.getElementById('new_image_preview').classList.remove('hidden');
+                
+                // Optionally hide the current image preview when new image is selected
+                // Uncomment the line below if you want to hide the current image
+                // document.getElementById('current_image_preview').innerHTML = '';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            document.getElementById('new_image_preview').classList.add('hidden');
         }
+    }
 
-        // Close modal when clicking outside
-        document.getElementById('editModal').addEventListener('click', function(event) {
-            if (event.target === this) {
-                closeEditModal();
-            }
-        });
-
-        // Close modal on Escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                const modal = document.getElementById('editModal');
-                if (!modal.classList.contains('hidden')) {
-                    closeEditModal();
-                }
-            }
-        });
-
-        function validateAndSubmit(userId) {
-            // Get the form
-            const form = document.getElementById('approve-form-' + userId);
-            
-            if (!form) {
-                console.error('Form not found for user ID:', userId);
-                alert('Error: Form not found. Please refresh the page and try again.');
-                return false;
-            }
-            
-            // Get form elements using the form attribute
-            const genderSelect = document.querySelector('select[name="gender"][form="approve-form-' + userId + '"]') || 
-                                form.querySelector('select[name="gender"]');
-            const hireDateInput = document.querySelector('input[name="hire_date"][form="approve-form-' + userId + '"]') || 
-                                 form.querySelector('input[name="hire_date"]');
-            const departmentSelect = document.querySelector('select[name="department"][form="approve-form-' + userId + '"]') || 
-                                    form.querySelector('select[name="department"]');
-            
-            // Check if elements exist
-            if (!genderSelect || !hireDateInput || !departmentSelect) {
-                console.error('Required form elements not found');
-                console.error('Gender:', genderSelect);
-                console.error('HireDate:', hireDateInput);
-                console.error('Department:', departmentSelect);
-                alert('Error: Form is incomplete. Please refresh the page.');
-                return false;
-            }
-            
-            const gender = genderSelect.value;
-            const hireDate = hireDateInput.value;
-            const department = departmentSelect.value;
-            
-            // Validate gender
-            if (!gender || gender === '') {
-                alert('Please select a gender before approving.');
-                genderSelect.focus();
-                return false;
-            }
-            
-            // Validate hire date
-            if (!hireDate || hireDate === '') {
-                alert('Please select a hire date before approving.');
-                hireDateInput.focus();
-                return false;
-            }
-            
-            // Validate hire date is not in future
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const selectedDate = new Date(hireDate);
-            selectedDate.setHours(0, 0, 0, 0);
-            
-            if (selectedDate > today) {
-                alert('Hire date cannot be in the future.');
-                hireDateInput.focus();
-                return false;
-            }
-            
-            // Validate department
-            if (!department || department === '') {
-                alert('Please select a department before approving.');
-                departmentSelect.focus();
-                return false;
-            }
-            
-            // Confirm approval
-            if (confirm('Are you sure you want to approve this employee?\n\nGender: ' + gender + '\nHire Date: ' + hireDate + '\nDepartment: ' + department)) {
-                // Submit the form
-                form.submit();
-                return true;
-            }
-            
-            return false;
+    // Close modal on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeEditModal();
         }
-    </script>
+    });
+
+    // Close modal on outside click
+    document.getElementById('editEmployeeModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeEditModal();
+        }
+    });
+</script>
+
     {{-- Role Management Modal --}}
     <div id="roleModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
@@ -693,6 +736,30 @@
             </form>
         </div>
     </div>
+    @push('scripts')
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.employee-tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Remove active state from all tabs
+            document.querySelectorAll('.employee-tab').forEach(button => {
+                button.classList.remove('border-indigo-500', 'text-indigo-600');
+                button.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // Show selected tab content
+            document.getElementById('content-' + tabName).classList.remove('hidden');
+            
+            // Set active state on selected tab
+            const activeTab = document.getElementById('tab-' + tabName);
+            activeTab.classList.remove('border-transparent', 'text-gray-500');
+            activeTab.classList.add('border-indigo-500', 'text-indigo-600');
+        }
+    </script>
+    @endpush    
 
     <script>
         function openRoleModal(userId, userName, currentRole, currentDept) {

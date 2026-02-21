@@ -2,37 +2,75 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\EnhancedEmployeesExport;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 
 class EmployeeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $search = $request->input('search');
+    
+        // Pending users (not yet approved as employees)
         $pendingUsers = User::whereDoesntHave('employee')
             ->where('role', '!=', 'admin')
-            ->select('id', 'name', 'email')
+            ->when($search, function($q) use ($search) {
+                $q->where(function($query) use ($search) {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->select('id', 'name', 'email', 'gender')
             ->latest()
-            ->paginate(5, ['*'], 'pending_page');
-
-        $activeEmployees = User::whereHas('employee', function($query) {
-            $query->where('status', 'active');
-        })
-        ->with('employee')
-        ->paginate(5, ['*'], 'active_page');
-
-        $blockedEmployees = User::whereHas('employee', function($query) {
-            $query->where('status', 'blocked');
-        })
-        ->with('employee')
-        ->paginate(5, ['*'], 'blocked_page');
-
+            ->paginate(10, ['*'], 'pending_page')
+            ->appends(['search' => $search, 'active_page' => request('active_page'), 'blocked_page' => request('blocked_page')]);
+    
+        // Active employees
+        $activeEmployees = Employee::with('user')
+            ->whereHas('user', function($q) use ($search) {
+                if ($search) {
+                    $q->where(function($query) use ($search) {
+                        $query->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+                }
+            })
+            ->where('status', 'active')
+            ->when($search, function($q) use ($search) {
+                // Also search in employee-specific fields
+                $q->orWhere('department', 'like', "%{$search}%");
+            })
+            ->latest()
+            ->paginate(10, ['*'], 'active_page')
+            ->appends(['search' => $search, 'pending_page' => request('pending_page'), 'blocked_page' => request('blocked_page')]);
+    
+        // Blocked employees
+        $blockedEmployees = Employee::with('user')
+            ->whereHas('user', function($q) use ($search) {
+                if ($search) {
+                    $q->where(function($query) use ($search) {
+                        $query->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+                }
+            })
+            ->where('status', 'blocked')
+            ->when($search, function($q) use ($search) {
+                // Also search in employee-specific fields
+                $q->orWhere('department', 'like', "%{$search}%");
+            })
+            ->latest()
+            ->paginate(10, ['*'], 'blocked_page')
+            ->appends(['search' => $search, 'pending_page' => request('pending_page'), 'active_page' => request('active_page')]);
+    
         $departments = Department::all();
-
+    
         return view('admin.manageEmployee', compact(
             'pendingUsers',
             'activeEmployees',
@@ -46,31 +84,31 @@ class EmployeeController extends Controller
         try {
             $request->validate([
                 'department' => 'required|string',
-                'gender' => 'required|in:male,female,other',
-                'hire_date' => 'required|date|before_or_equal:today',
+                'gender'     => 'required|in:male,female,other',
+                'hire_date'  => 'required|date|before_or_equal:today',
             ]);
-    
+
             $user = User::findOrFail($id);
-            
+
             // Check if already has employee record
             if ($user->employee) {
                 return redirect()->back()->with('error', 'Employee already approved');
             }
-            
+
             // Update user gender
             $user->gender = $request->gender;
             $user->save();
-            
+
             // Create employee record
             $user->employee()->create([
-                'status' => 'active',
+                'status'     => 'active',
                 'department' => $request->department,
                 'leave_year' => date('Y'),
-                'hire_date' => $request->hire_date,
+                'hire_date'  => $request->hire_date,
             ]);
-    
+
             return redirect()->back()->with('success', 'Employee approved successfully');
-            
+
         } catch (\Exception $e) {
             \Log::error('Employee approval error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to approve employee: ' . $e->getMessage());
@@ -106,11 +144,11 @@ class EmployeeController extends Controller
     public function updateProfile(Request $request, $id)
     {
         $employee = Employee::findOrFail($id);
-        
+
         $request->validate([
-            'department' => 'nullable|string',
-            'hire_date' => 'nullable|date|before_or_equal:today',  // ADD THIS
-            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',  // ADD webp
+            'department'    => 'required|string',
+            'hire_date'     => 'nullable|date|before_or_equal:today',
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
         // Update hire date if provided
@@ -139,6 +177,7 @@ class EmployeeController extends Controller
         return redirect()->back()->with('success', 'Profile updated successfully');
     }
 
+    // Role management
     public function updateRole(Request $request, $id)
     {
         $request->validate([
@@ -146,7 +185,7 @@ class EmployeeController extends Controller
             'heads_department' => 'required_if:role,assessor|nullable|string',
         ]);
 
-        $user = \App\Models\User::findOrFail($id);
+        $user = User::findOrFail($id);
 
         $user->role             = $request->role;
         $user->heads_department = $request->role === 'assessor'
@@ -161,11 +200,11 @@ class EmployeeController extends Controller
     public function exportToExcel(Request $request)
     {
         $type = $request->get('type', 'all');
-        
+
         $filename = 'employees_' . $type . '_' . date('Ymd_His') . '.xlsx';
-        
+
         return Excel::download(
-            new \App\Exports\EnhancedEmployeesExport($type),
+            new EnhancedEmployeesExport($type),
             $filename
         );
     }
