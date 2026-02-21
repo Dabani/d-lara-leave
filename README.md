@@ -1193,7 +1193,7 @@ We welcome contributions from developers worldwide! Here's how to get involved:
 
 1. **Fork the repository**
    ```bash
-   git clone https://github.com/your-username/d-lara-leave.git
+   git clone https://github.com/dabani/d-lara-leave.git
    ```
 
 2. **Create a feature branch**
@@ -1446,4 +1446,4 @@ License: MIT
 
 **Last Updated**: February 2026  
 **Version**: 1.0.0  
-**Maintained by**: B-KELANA International Development Team
+**Maintained by**: Robert Makuta
