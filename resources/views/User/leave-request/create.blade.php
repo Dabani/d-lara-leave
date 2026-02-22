@@ -150,6 +150,27 @@
                 </div>
             @endif
 
+            {{-- Public Holiday Info Banner --}}
+            <div id="public-holiday-info" class="hidden mb-4 p-4 bg-purple-50 border-l-4 border-purple-400 rounded">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-purple-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
+                    </svg>
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-purple-800 mb-1">Public Holiday Notice</h4>
+                        <div id="public-holiday-message" class="text-sm text-purple-700"></div>
+                        <p class="text-xs text-purple-600 mt-2 italic">
+                            ⓘ Public holidays are automatically blocked from leave selection.
+                        </p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.classList.add('hidden')" class="text-purple-700 hover:text-purple-900">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
             {{-- Pre-submission assessment banner --}}
             <div id="assessment-banner" class="hidden mb-4 rounded-lg border-l-4 p-4 transition-all duration-300">
                 <div class="flex items-start gap-3">
@@ -376,7 +397,7 @@
                                 <div>
                                     <p class="text-sm font-medium text-blue-900">
                                         Working Days: <span id="working-days-count" class="font-bold">0</span>
-                                        <span class="text-xs text-gray-600">(excluding weekends)</span>
+                                        <span class="text-xs text-gray-600">(excluding weekends & public holidays)</span>
                                     </p>
                                 </div>
                             </div>
@@ -439,17 +460,283 @@
             };
 
             // ─────────────────────────────────────────────────────────────────────────────
-            // HELPERS
+            // DYNAMIC RWANDA PUBLIC HOLIDAY CALCULATOR
+            // Calculates public holidays for any year based on official rules
             // ─────────────────────────────────────────────────────────────────────────────
+
+            /**
+             * Calculate Easter date for a given year (Anonymous Gregorian algorithm)
+             * Returns Date object set to Easter Sunday
+             */
+            function getEasterDate(year) {
+                const a = year % 19;
+                const b = Math.floor(year / 100);
+                const c = year % 100;
+                const d = Math.floor(b / 4);
+                const e = b % 4;
+                const f = Math.floor((b + 8) / 25);
+                const g = Math.floor((b - f + 1) / 3);
+                const h = (19 * a + b - d - g + 15) % 30;
+                const i = Math.floor(c / 4);
+                const k = c % 4;
+                const l = (32 + 2 * e + 2 * i - h - k) % 7;
+                const m = Math.floor((a + 11 * h + 22 * l) / 451);
+                const month = Math.floor((h + l - 7 * m + 114) / 31);
+                const day = ((h + l - 7 * m + 114) % 31) + 1;
+                
+                return new Date(year, month - 1, day);
+            }
+
+            /**
+             * Calculate Islamic holidays (Eid al-Fitr and Eid al-Adha)
+             * These are approximations based on astronomical calculations
+             * Note: Actual dates may vary by 1-2 days based on moon sighting
+             */
+            function getIslamicHolidays(year) {
+                // Simplified calculations based on Umm al-Qura calendar approximation
+                // For production, you might want to fetch from an API or maintain a lookup table
+                
+                // Eid al-Fitr: 1 Shawwal (approximate: 1st day after Ramadan)
+                // Rough approximation: ~10-11 months after previous Eid
+                // For 2025-2027 approximations:
+                const eidFitriDates = {
+                    2025: '2025-03-30',
+                    2026: '2026-03-20',
+                    2027: '2027-03-10'
+                };
+                
+                // Eid al-Adha: 10 Dhu al-Hijjah (~70 days after Eid al-Fitr)
+                const eidAdhaDates = {
+                    2025: '2025-06-06',
+                    2026: '2026-05-27',
+                    2027: '2027-05-16'
+                };
+                
+                return {
+                    fitri: eidFitriDates[year] || null,
+                    adha: eidAdhaDates[year] || null
+                };
+            }
+
+            /**
+             * Apply Rwanda's observance rule:
+             * If holiday falls on weekend → observe on following Monday
+             * Exception: April 7 (Genocide Memorial Day) is always observed on actual date
+             */
+            function applyObservanceRule(date, isGenocideMemorial = false) {
+                if (isGenocideMemorial) {
+                    return new Date(date); // Always observed on actual date
+                }
+                
+                const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+                const observedDate = new Date(date);
+                
+                if (dayOfWeek === 0) { // Sunday
+                    observedDate.setDate(observedDate.getDate() + 1); // Move to Monday
+                } else if (dayOfWeek === 6) { // Saturday
+                    observedDate.setDate(observedDate.getDate() + 2); // Move to Monday
+                }
+                
+                return observedDate;
+            }
+
+            /**
+             * Generate all public holidays for a given year
+             */
+            function getPublicHolidaysForYear(year) {
+                const holidays = [];
+                
+                // Fixed date holidays
+                const fixedHolidays = [
+                    { name: "New Year's Day", month: 0, day: 1 }, // Jan 1
+                    { name: "Day After New Year's Day", month: 0, day: 2 }, // Jan 2
+                    { name: "National Heroes' Day", month: 1, day: 1 }, // Feb 1
+                    { name: "Genocide Against the Tutsi Memorial Day", month: 3, day: 7, isGenocideMemorial: true }, // April 7
+                    { name: "Labour Day", month: 4, day: 1 }, // May 1
+                    { name: "Independence Day", month: 6, day: 1 }, // July 1
+                    { name: "Liberation Day", month: 6, day: 4 }, // July 4
+                    { name: "Umuganura Day", month: 7, day: 1 }, // First Friday in August (approximated as Aug 1 for calculation)
+                    { name: "Assumption Day", month: 7, day: 15 }, // Aug 15
+                    { name: "Christmas Day", month: 11, day: 25 }, // Dec 25
+                    { name: "Boxing Day", month: 11, day: 26 } // Dec 26
+                ];
+                
+                fixedHolidays.forEach(holiday => {
+                    const date = new Date(year, holiday.month, holiday.day);
+                    const observedDate = applyObservanceRule(date, holiday.isGenocideMemorial || false);
+                    
+                    holidays.push({
+                        name: holiday.name,
+                        date: date,
+                        observed: observedDate,
+                        originalDate: date.toISOString().split('T')[0],
+                        observedDate: observedDate.toISOString().split('T')[0]
+                    });
+                });
+                
+                // Moveable Christian holidays (based on Easter)
+                const easterSunday = getEasterDate(year);
+                
+                // Good Friday (Friday before Easter)
+                const goodFriday = new Date(easterSunday);
+                goodFriday.setDate(easterSunday.getDate() - 2);
+                const observedGoodFriday = applyObservanceRule(goodFriday);
+                holidays.push({
+                    name: "Good Friday",
+                    date: goodFriday,
+                    observed: observedGoodFriday,
+                    originalDate: goodFriday.toISOString().split('T')[0],
+                    observedDate: observedGoodFriday.toISOString().split('T')[0]
+                });
+                
+                // Easter Monday (Monday after Easter)
+                const easterMonday = new Date(easterSunday);
+                easterMonday.setDate(easterSunday.getDate() + 1);
+                // Easter Monday is always Monday, so no observance rule needed
+                holidays.push({
+                    name: "Easter Monday",
+                    date: easterMonday,
+                    observed: easterMonday,
+                    originalDate: easterMonday.toISOString().split('T')[0],
+                    observedDate: easterMonday.toISOString().split('T')[0]
+                });
+                
+                // Islamic holidays (tentative, need confirmation each year)
+                const islamicHolidays = getIslamicHolidays(year);
+                
+                if (islamicHolidays.fitri) {
+                    const eidFitri = new Date(islamicHolidays.fitri);
+                    const observedEidFitri = applyObservanceRule(eidFitri);
+                    holidays.push({
+                        name: "Eid al-Fitr",
+                        date: eidFitri,
+                        observed: observedEidFitri,
+                        originalDate: eidFitri.toISOString().split('T')[0],
+                        observedDate: observedEidFitri.toISOString().split('T')[0],
+                        tentative: true
+                    });
+                }
+                
+                if (islamicHolidays.adha) {
+                    const eidAdha = new Date(islamicHolidays.adha);
+                    const observedEidAdha = applyObservanceRule(eidAdha);
+                    holidays.push({
+                        name: "Eid al-Adha",
+                        date: eidAdha,
+                        observed: observedEidAdha,
+                        originalDate: eidAdha.toISOString().split('T')[0],
+                        observedDate: observedEidAdha.toISOString().split('T')[0],
+                        tentative: true
+                    });
+                }
+                
+                // Handle Umuganura Day (First Friday in August)
+                // Find the first Friday in August
+                const firstAug = new Date(year, 7, 1);
+                const dayOfWeek = firstAug.getDay();
+                const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
+                const umuganura = new Date(firstAug);
+                umuganura.setDate(firstAug.getDate() + daysUntilFriday);
+                const observedUmuganura = applyObservanceRule(umuganura);
+                
+                // Update the placeholder Umuganura entry
+                const umuganuraIndex = holidays.findIndex(h => h.name === "Umuganura Day");
+                if (umuganuraIndex !== -1) {
+                    holidays[umuganuraIndex] = {
+                        name: "Umuganura Day",
+                        date: umuganura,
+                        observed: observedUmuganura,
+                        originalDate: umuganura.toISOString().split('T')[0],
+                        observedDate: observedUmuganura.toISOString().split('T')[0]
+                    };
+                }
+                
+                return holidays;
+            }
+
+            /**
+             * Get observed holiday dates for a range of years (current year and next year)
+             */
+            function getAllObservedHolidayDates() {
+                const currentYear = new Date().getFullYear();
+                const years = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2]; // Include adjacent years for coverage
+                
+                let allHolidays = [];
+                years.forEach(year => {
+                    const holidays = getPublicHolidaysForYear(year);
+                    allHolidays = allHolidays.concat(holidays);
+                });
+                
+                // Remove duplicates (e.g., holidays that might be observed on same date across years)
+                const uniqueHolidays = {};
+                allHolidays.forEach(holiday => {
+                    uniqueHolidays[holiday.observedDate] = holiday;
+                });
+                
+                return Object.values(uniqueHolidays);
+            }
+
+            // Get all holidays for current and future years
+            const allPublicHolidays = getAllObservedHolidayDates();
+            
+            // Create a quick lookup for holiday checking
+            const holidayLookup = {};
+            allPublicHolidays.forEach(holiday => {
+                holidayLookup[holiday.observedDate] = holiday.name;
+            });
+
+            // Generate array of observed holiday dates for Flatpickr
+            const observedHolidayDates = allPublicHolidays.map(h => h.observedDate);
+
+            // Check if a date is a public holiday
+            function isPublicHoliday(date) {
+                const dateStr = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+                return !!holidayLookup[dateStr];
+            }
+
+            // Get public holiday name for a date
+            function getPublicHolidayName(date) {
+                const dateStr = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+                return holidayLookup[dateStr] || null;
+            }
+
+            // Calculate working days excluding weekends AND public holidays
             function calculateWorkingDays(from, to) {
                 let count = 0;
                 const cur = new Date(from);
-                while (cur <= to) {
+                const end = new Date(to);
+                
+                while (cur <= end) {
                     const d = cur.getDay();
-                    if (d !== 0 && d !== 6) count++;
+                    const dateStr = cur.toISOString().split('T')[0];
+                    
+                    // Skip weekends (Saturday = 6, Sunday = 0) and public holidays
+                    if (d !== 0 && d !== 6 && !isPublicHoliday(dateStr)) {
+                        count++;
+                    }
                     cur.setDate(cur.getDate() + 1);
                 }
                 return count;
+            }
+
+            // Check if a date range contains any public holidays
+            function getPublicHolidaysInRange(from, to) {
+                const holidays = [];
+                const cur = new Date(from);
+                const end = new Date(to);
+                
+                while (cur <= end) {
+                    const dateStr = cur.toISOString().split('T')[0];
+                    const holidayName = getPublicHolidayName(dateStr);
+                    if (holidayName) {
+                        holidays.push({
+                            date: dateStr,
+                            name: holidayName
+                        });
+                    }
+                    cur.setDate(cur.getDate() + 1);
+                }
+                return holidays;
             }
 
             function isInRecommendedPeriod(from, to) {
@@ -485,8 +772,9 @@
                     blockedDates = data.blocked_dates || [];
                     
                     console.log(`Loaded ${blockedDates.length} of your existing leave requests`);
+                    console.log(`Loaded ${observedHolidayDates.length} public holidays dynamically`);
                     
-                    // Reinitialize Flatpickr with your personal blocked dates
+                    // Reinitialize Flatpickr with your personal blocked dates and public holidays
                     initializeFlatpickrWithBlockedDates();
                     
                 } catch (error) {
@@ -494,13 +782,13 @@
                 }
             }
 
-            // Initialize or reinitialize Flatpickr with user's personal blocked dates
+            // Initialize or reinitialize Flatpickr with user's personal blocked dates and public holidays
             function initializeFlatpickrWithBlockedDates() {
                 // Destroy existing instances if they exist
                 if (flatpickrInstances.from) flatpickrInstances.from.destroy();
                 if (flatpickrInstances.to) flatpickrInstances.to.destroy();
 
-                // FROM date picker with user's personal blocked dates
+                // FROM date picker with user's personal blocked dates and public holidays
                 flatpickrInstances.from = flatpickr("#leave_from", {
                     dateFormat: "Y-m-d",
                     minDate: "today",
@@ -510,6 +798,8 @@
                             from: range.from,
                             to: range.to
                         })),
+                        // Disable public holidays (individual days)
+                        ...observedHolidayDates,
                         // Disable weekends (Saturday = 6, Sunday = 0)
                         function(date) {
                             return (date.getDay() === 0 || date.getDay() === 6);
@@ -525,25 +815,37 @@
                         calculateDuration();
                         runAssessment();
                         checkDepartmentCongestion();
+                        checkPublicHolidays();
                     },
                     onDayCreate: function(dObj, dStr, fp, dayElem) {
-                        // Add visual indicator for user's own blocked dates
                         const dateStr = dayElem.dateObj.toISOString().split('T')[0];
-                        const isBlocked = blockedDates.some(range => {
+                        
+                        // Check if date is user's own blocked leave
+                        const isUserBlocked = blockedDates.some(range => {
                             return dateStr >= range.from && dateStr <= range.to;
                         });
                         
-                        if (isBlocked) {
+                        // Check if date is a public holiday
+                        const isHoliday = isPublicHoliday(dateStr);
+                        const holidayName = getPublicHolidayName(dateStr);
+                        
+                        if (isUserBlocked) {
                             dayElem.classList.add('blocked-date');
                             dayElem.title = 'You already have a leave request for this period';
                             dayElem.style.background = '#fee2e2';
                             dayElem.style.color = '#991b1b';
                             dayElem.style.textDecoration = 'line-through';
+                        } else if (isHoliday) {
+                            dayElem.classList.add('public-holiday');
+                            dayElem.title = `Public Holiday: ${holidayName}`;
+                            dayElem.style.background = '#f3e8ff'; // Light purple
+                            dayElem.style.color = '#6b21a8';
+                            dayElem.style.fontWeight = 'bold';
                         }
                     }
                 });
 
-                // TO date picker with user's personal blocked dates
+                // TO date picker with user's personal blocked dates and public holidays
                 flatpickrInstances.to = flatpickr("#leave_to", {
                     dateFormat: "Y-m-d",
                     minDate: "today",
@@ -552,6 +854,7 @@
                             from: range.from,
                             to: range.to
                         })),
+                        ...observedHolidayDates,
                         function(date) {
                             return (date.getDay() === 0 || date.getDay() === 6);
                         }
@@ -560,22 +863,57 @@
                         calculateDuration();
                         runAssessment();
                         checkDepartmentCongestion();
+                        checkPublicHolidays();
                     },
                     onDayCreate: function(dObj, dStr, fp, dayElem) {
                         const dateStr = dayElem.dateObj.toISOString().split('T')[0];
-                        const isBlocked = blockedDates.some(range => {
+                        
+                        const isUserBlocked = blockedDates.some(range => {
                             return dateStr >= range.from && dateStr <= range.to;
                         });
                         
-                        if (isBlocked) {
+                        const isHoliday = isPublicHoliday(dateStr);
+                        const holidayName = getPublicHolidayName(dateStr);
+                        
+                        if (isUserBlocked) {
                             dayElem.classList.add('blocked-date');
                             dayElem.title = 'You already have a leave request for this period';
                             dayElem.style.background = '#fee2e2';
                             dayElem.style.color = '#991b1b';
                             dayElem.style.textDecoration = 'line-through';
+                        } else if (isHoliday) {
+                            dayElem.classList.add('public-holiday');
+                            dayElem.title = `Public Holiday: ${holidayName}`;
+                            dayElem.style.background = '#f3e8ff';
+                            dayElem.style.color = '#6b21a8';
+                            dayElem.style.fontWeight = 'bold';
                         }
                     }
                 });
+            }
+
+            // Check for public holidays in selected range and show info
+            function checkPublicHolidays() {
+                const from = document.getElementById('leave_from').value;
+                const to = document.getElementById('leave_to').value;
+                
+                if (!from || !to) return;
+                
+                const holidays = getPublicHolidaysInRange(from, to);
+                const holidayBanner = document.getElementById('public-holiday-info');
+                const holidayMessage = document.getElementById('public-holiday-message');
+                
+                if (holidays.length > 0) {
+                    const holidayList = holidays.map(h => `${h.date}: ${h.name}`).join('<br>');
+                    holidayMessage.innerHTML = `
+                        <strong>Public holidays in your selected range:</strong><br>
+                        ${holidayList}<br>
+                        <span class="text-xs">These days are automatically excluded from working days calculation.</span>
+                    `;
+                    holidayBanner.classList.remove('hidden');
+                } else {
+                    holidayBanner.classList.add('hidden');
+                }
             }
 
             // Check department congestion (warning only)
@@ -680,6 +1018,12 @@
 
                 const totalDays   = Math.round((to - from) / 86400000) + 1;
                 const workingDays = calculateWorkingDays(from, to);
+
+                // ── Check for public holidays in range (info only) ─────────────────────
+                const holidaysInRange = getPublicHolidaysInRange(fromVal, toVal);
+                if (holidaysInRange.length > 0) {
+                    oks.push(`${holidaysInRange.length} public holiday(s) in range (excluded from working days) ✓`);
+                }
 
                 // ── Type-specific checks ─────────────────────────────────────────────────
                 if (leaveType === 'Sick Leave') {
@@ -889,6 +1233,7 @@
                 runAssessment();
                 if (document.getElementById('leave_from').value && document.getElementById('leave_to').value) {
                     checkDepartmentCongestion();
+                    checkPublicHolidays();
                 }
             });
 
@@ -959,6 +1304,28 @@
                 right: 2px;
                 font-size: 8px;
                 color: #dc2626;
+            }
+
+            /* Visual styling for public holidays in calendar */
+            .flatpickr-day.public-holiday {
+                background-color: #f3e8ff !important;
+                color: #6b21a8 !important;
+                cursor: not-allowed !important;
+                position: relative;
+                font-weight: bold;
+            }
+
+            .flatpickr-day.public-holiday:hover {
+                background-color: #e9d5ff !important;
+            }
+
+            .flatpickr-day.public-holiday::after {
+                content: '🎉';
+                position: absolute;
+                top: 2px;
+                right: 2px;
+                font-size: 8px;
+                color: #6b21a8;
             }
         </style>
     @endpush
