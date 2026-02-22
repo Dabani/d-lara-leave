@@ -137,6 +137,10 @@ Route::middleware(['auth'])->group(function () {
     
     Route::post('/api/leave-calendar/check-availability', [LeaveCalendarController::class, 'checkDateAvailability'])
         ->name('api.leave-calendar.check-availability');
+    
+    // NEW: Department summary endpoint
+    Route::get('/api/leave-calendar/department-summary', [LeaveCalendarController::class, 'getDepartmentSummary'])
+        ->name('api.leave-calendar.department-summary');
 });
 
 require __DIR__.'/auth.php';

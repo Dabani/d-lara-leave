@@ -149,7 +149,8 @@
                     @endif
                 </div>
             @endif
-            {{-- ── Pre-submission assessment banner ──────────────────────────────── --}}
+
+            {{-- Pre-submission assessment banner --}}
             <div id="assessment-banner" class="hidden mb-4 rounded-lg border-l-4 p-4 transition-all duration-300">
                 <div class="flex items-start gap-3">
                     <span id="assessment-icon" class="text-2xl flex-shrink-0 mt-0.5"></span>
@@ -159,7 +160,28 @@
                     </div>
                 </div>
             </div>
-            {{-- ── END Pre-submission assessment banner ──────────────────────────────── --}}
+
+            {{-- Department Warning Banner (will be dynamically shown) --}}
+            <div id="department-warning-banner" class="hidden mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-yellow-800 mb-2">Department Availability Notice</h4>
+                        <div id="department-warnings-list" class="space-y-2"></div>
+                        <p class="text-xs text-yellow-700 mt-2 italic">
+                            ⓘ These are warnings only - you can still submit. Your HOD will consider department coverage when reviewing.
+                        </p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.classList.add('hidden')" class="text-yellow-700 hover:text-yellow-900">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     <form action="{{ route('leave-request.store') }}" method="POST" enctype="multipart/form-data" id="leaveRequestForm">
@@ -272,6 +294,7 @@
                                 <p class="text-red-500 text-xs mt-2">{{ $message }}</p>
                             @enderror
                         </div>
+
                         {{-- Annual Leave Recommended Period Warning --}}
                         <div id="annual-leave-warning" class="mb-6 p-4 bg-red-50 border border-red-300 rounded-md hidden">
                             <div class="flex items-start">
@@ -287,36 +310,7 @@
                                 </div>
                             </div>
                         </div>  
-                        <!--
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                            <div>
-                                <label for="leave_from" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Leave From <span class="text-red-500">*</span>
-                                </label>
-                                <input type="date" name="leave_from" id="leave_from" required
-                                       value="{{ old('leave_from') }}"
-                                       min="{{ date('Y-m-d') }}"
-                                       class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                @error('leave_from')
-                                    <p class="text-red-500 text-xs mt-2">{{ $message }}</p>
-                                @enderror
-                            </div>
 
-                            <div>
-                                <label for="leave_to" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Leave To <span class="text-red-500">*</span>
-                                </label>
-                                <input type="date" name="leave_to" id="leave_to" required
-                                       value="{{ old('leave_to') }}"
-                                       min="{{ date('Y-m-d') }}"
-                                       class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                @error('leave_to')
-                                    <p class="text-red-500 text-xs mt-2">{{ $message }}</p>
-                                @enderror
-                            </div>
-                        </div>
-                        -->
-                        
                         {{-- Date Selection with Calendar --}}
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                             <div>
@@ -402,6 +396,7 @@
 
                         <div class="flex flex-col sm:flex-row gap-3 justify-center">
                             <button type="submit" 
+                                    id="submit-button"
                                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-md transition duration-150">
                                 Submit Request
                             </button>
@@ -415,13 +410,8 @@
             </div>
         </div>
     </div>
-    {{-- Add Flatpickr CSS --}}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
-    
+
     @push('scripts')
-        {{-- Add Flatpickr JS --}}
-        <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
         <script>
             // ─────────────────────────────────────────────────────────────────────────────
             // DATA FROM BLADE
@@ -470,12 +460,12 @@
             }
 
             // ═════════════════════════════════════════════════════════════════════════════
-            // FETCH BLOCKED DATES FROM API
+            // FETCH USER'S OWN BLOCKED DATES FROM API
             // ═════════════════════════════════════════════════════════════════════════════
             let blockedDates = [];
             let flatpickrInstances = { from: null, to: null };
 
-            // Fetch blocked dates when page loads
+            // Fetch user's own blocked dates when page loads
             async function fetchBlockedDates() {
                 try {
                     const response = await fetch('/api/leave-calendar/blocked-dates', {
@@ -493,11 +483,10 @@
 
                     const data = await response.json();
                     blockedDates = data.blocked_dates || [];
-                    console.log('API Response:', data);                    
-                    console.log(`Loaded ${blockedDates.length} blocked date ranges`);
-                    console.log('Blocked dates array:', blockedDates);
                     
-                    // Reinitialize Flatpickr with blocked dates
+                    console.log(`Loaded ${blockedDates.length} of your existing leave requests`);
+                    
+                    // Reinitialize Flatpickr with your personal blocked dates
                     initializeFlatpickrWithBlockedDates();
                     
                 } catch (error) {
@@ -505,18 +494,18 @@
                 }
             }
 
-            // Initialize or reinitialize Flatpickr with blocked dates
+            // Initialize or reinitialize Flatpickr with user's personal blocked dates
             function initializeFlatpickrWithBlockedDates() {
                 // Destroy existing instances if they exist
                 if (flatpickrInstances.from) flatpickrInstances.from.destroy();
                 if (flatpickrInstances.to) flatpickrInstances.to.destroy();
 
-                // FROM date picker with blocked dates
+                // FROM date picker with user's personal blocked dates
                 flatpickrInstances.from = flatpickr("#leave_from", {
                     dateFormat: "Y-m-d",
                     minDate: "today",
                     disable: [
-                        // Disable all blocked date ranges
+                        // Disable user's own blocked date ranges (their existing leaves)
                         ...blockedDates.map(range => ({
                             from: range.from,
                             to: range.to
@@ -535,9 +524,10 @@
                         // Trigger assessment and duration calculation
                         calculateDuration();
                         runAssessment();
+                        checkDepartmentCongestion();
                     },
                     onDayCreate: function(dObj, dStr, fp, dayElem) {
-                        // Add visual indicator for blocked dates
+                        // Add visual indicator for user's own blocked dates
                         const dateStr = dayElem.dateObj.toISOString().split('T')[0];
                         const isBlocked = blockedDates.some(range => {
                             return dateStr >= range.from && dateStr <= range.to;
@@ -545,14 +535,15 @@
                         
                         if (isBlocked) {
                             dayElem.classList.add('blocked-date');
-                            dayElem.title = 'Unavailable - another leave exists';
-                            dayElem.style.background = '#fee'; // Light red background
-                            dayElem.style.color = '#999';
+                            dayElem.title = 'You already have a leave request for this period';
+                            dayElem.style.background = '#fee2e2';
+                            dayElem.style.color = '#991b1b';
+                            dayElem.style.textDecoration = 'line-through';
                         }
                     }
                 });
 
-                // TO date picker with blocked dates
+                // TO date picker with user's personal blocked dates
                 flatpickrInstances.to = flatpickr("#leave_to", {
                     dateFormat: "Y-m-d",
                     minDate: "today",
@@ -568,6 +559,7 @@
                     onChange: function(selectedDates, dateStr, instance) {
                         calculateDuration();
                         runAssessment();
+                        checkDepartmentCongestion();
                     },
                     onDayCreate: function(dObj, dStr, fp, dayElem) {
                         const dateStr = dayElem.dateObj.toISOString().split('T')[0];
@@ -577,18 +569,72 @@
                         
                         if (isBlocked) {
                             dayElem.classList.add('blocked-date');
-                            dayElem.title = 'Unavailable - another leave exists';
-                            dayElem.style.background = '#fee';
-                            dayElem.style.color = '#999';
+                            dayElem.title = 'You already have a leave request for this period';
+                            dayElem.style.background = '#fee2e2';
+                            dayElem.style.color = '#991b1b';
+                            dayElem.style.textDecoration = 'line-through';
                         }
                     }
                 });
             }
 
-            // Fetch blocked dates on page load
-            document.addEventListener('DOMContentLoaded', function() {
-                fetchBlockedDates();
-            });
+            // Check department congestion (warning only)
+            async function checkDepartmentCongestion() {
+                const leaveType = document.getElementById('leave_type').value;
+                const fromVal = document.getElementById('leave_from').value;
+                const toVal = document.getElementById('leave_to').value;
+                
+                if (!leaveType || !fromVal || !toVal) return;
+                
+                try {
+                    const response = await fetch('/api/leave-calendar/check-availability', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({
+                            leave_from: fromVal,
+                            leave_to: toVal,
+                            leave_type: leaveType
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.department_warnings && data.department_warnings.length > 0) {
+                        showDepartmentWarnings(data.department_warnings);
+                    } else {
+                        hideDepartmentWarnings();
+                    }
+                    
+                } catch (error) {
+                    console.error('Error checking department congestion:', error);
+                }
+            }
+
+            // Show department warnings in a non-blocking banner
+            function showDepartmentWarnings(warnings) {
+                const warningBanner = document.getElementById('department-warning-banner');
+                const listContainer = document.getElementById('department-warnings-list');
+                
+                // Populate warnings
+                listContainer.innerHTML = warnings.map(warning => {
+                    const colorClass = warning.level === 'high' ? 'text-red-700' : 
+                                      (warning.level === 'medium' ? 'text-yellow-700' : 'text-blue-700');
+                    return `<p class="text-sm ${colorClass}">• ${warning.message}</p>`;
+                }).join('');
+                
+                warningBanner.classList.remove('hidden');
+            }
+
+            function hideDepartmentWarnings() {
+                const warningBanner = document.getElementById('department-warning-banner');
+                if (warningBanner) {
+                    warningBanner.classList.add('hidden');
+                }
+            }
 
             // ─────────────────────────────────────────────────────────────────────────────
             // ASSESSMENT ENGINE
@@ -604,6 +650,7 @@
                 const errors   = [];   // red  — will block submit
                 const warnings = [];   // amber — allowed but flagged
                 const oks      = [];   // green
+                const submitBtn = document.getElementById('submit-button');
 
                 if (!leaveType) {
                     hideBanner();
@@ -619,6 +666,17 @@
 
                 if (from < today) errors.push('Start date cannot be in the past.');
                 if (to < from)    errors.push('End date must be on or after the start date.');
+
+                // ── Check if dates overlap with user's existing leaves ──────────────────
+                const isDateBlocked = blockedDates.some(range => {
+                    const rangeFrom = new Date(range.from);
+                    const rangeTo = new Date(range.to);
+                    return (from <= rangeTo && to >= rangeFrom); // Any overlap
+                });
+
+                if (isDateBlocked) {
+                    errors.push('These dates overlap with one of your existing leave requests.');
+                }
 
                 const totalDays   = Math.round((to - from) / 86400000) + 1;
                 const workingDays = calculateWorkingDays(from, to);
@@ -725,7 +783,7 @@
                 const icon   = document.getElementById('assessment-icon');
                 const title  = document.getElementById('assessment-title');
                 const list   = document.getElementById('assessment-list');
-                const submit = document.querySelector('button[type="submit"]');
+                const submit = document.getElementById('submit-button');
 
                 banner.classList.remove('hidden', 'border-red-400', 'bg-red-50',
                                         'border-yellow-400', 'bg-yellow-50',
@@ -785,14 +843,14 @@
                         list.appendChild(li);
                     });
                     if (submit) { submit.disabled = false; submit.classList.remove('opacity-50', 'cursor-not-allowed'); }
+                } else {
+                    hideBanner();
                 }
-
-                banner.classList.remove('hidden');
             }
 
             function hideBanner() {
                 document.getElementById('assessment-banner').classList.add('hidden');
-                const submit = document.querySelector('button[type="submit"]');
+                const submit = document.getElementById('submit-button');
                 if (submit) { submit.disabled = false; submit.classList.remove('opacity-50', 'cursor-not-allowed'); }
             }
 
@@ -829,6 +887,9 @@
 
                 calculateDuration();
                 runAssessment();
+                if (document.getElementById('leave_from').value && document.getElementById('leave_to').value) {
+                    checkDepartmentCongestion();
+                }
             });
 
             document.querySelectorAll('input[name="is_first_attempt"]').forEach(r => {
@@ -869,8 +930,10 @@
                 if (el) el.addEventListener('change', runAssessment);
             });
 
-            // Initial calculation if dates are pre-filled
-            calculateDuration();
+            // Fetch blocked dates on page load
+            document.addEventListener('DOMContentLoaded', function() {
+                fetchBlockedDates();
+            });
         </script>
     @endpush
 
@@ -882,6 +945,7 @@
                 color: #991b1b !important;
                 cursor: not-allowed !important;
                 position: relative;
+                text-decoration: line-through;
             }
 
             .flatpickr-day.blocked-date:hover {
