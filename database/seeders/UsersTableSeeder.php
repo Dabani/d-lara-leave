@@ -17,7 +17,7 @@ class UsersTableSeeder extends Seeder
         // Create admin user
         DB::table('users')->insert([
             'name' => 'Admin',
-            'email' => 'admin@b-kelanainternational.com',
+            'email' => 'admin@example.com',
             'password' => Hash::make('Admin@123'),
             'role' => 'admin',
             'created_at' => now(),
@@ -27,24 +27,24 @@ class UsersTableSeeder extends Seeder
         // Create test users
         $testUsers = [
             [
-                'name' => 'Mujawayezu Beatrice',
-                'email' => 'bmujawayezu@b-kelanainternational.com',
+                'name' => 'Managing Partner',
+                'email' => 'mp@example.com',
                 'password' => Hash::make('Test@12345'),
-                'role' => 'user',
+                'role' => 'managing-partner',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'name' => 'Habarugira Jean Baptiste',
-                'email' => 'jbhabarugira@b-kelanainternational.com',
+                'name' => 'Assessor',
+                'email' => 'hod@example.com',
                 'password' => Hash::make('Test@12345'),
-                'role' => 'user',
+                'role' => 'assessor',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'name' => 'Makuta Robert',
-                'email' => 'rmakuta@b-kelanainternational.com',
+                'name' => 'Employee',
+                'email' => 'user@example.com',
                 'password' => Hash::make('Test@12345'),
                 'role' => 'user',
                 'created_at' => now(),
