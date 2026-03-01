@@ -30,6 +30,8 @@ class UpdateLeaveRequestRequest extends FormRequest
         return [
             'leave_to.after_or_equal' => 'The "Leave To" date must be after or equal to the "Leave From" date.',
             'medical_certificate.required_if' => 'Medical certificate is required for sick leave.',
+            'medical_certificate.file' => 'Medical certificate must be a valid file.',
+            'supporting_document.file' => 'Supporting document must be a valid file.',
         ];
     }
 

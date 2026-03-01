@@ -32,10 +32,12 @@ class StoreLeaveRequestRequest extends FormRequest
             'leave_to.after_or_equal' => 'The "Leave To" date must be after or equal to the "Leave From" date.',
             'medical_certificate.required_if' => 'Medical certificate is required for sick leave.',
             'medical_certificate.mimes' => 'Medical certificate must be a PDF, JPG, JPEG, PNG, or WebP file.',
-            'medical_certificate.max' => 'Medical certificate file size cannot exceed 2MB.',
+            'medical_certificate.max' => 'Medical certificate must be smaller than 2MB. Current file is too large. Please compress it and try again.',
+            'medical_certificate.file' => 'Medical certificate must be a valid file.',
             'supporting_document.required_if' => 'Supporting document is required for study leave (exam registration, professional exam notice, etc.).',
             'supporting_document.mimes' => 'Supporting document must be a PDF, JPG, JPEG, PNG, or WebP file.',
-            'supporting_document.max' => 'Supporting document file size cannot exceed 2MB.',
+            'supporting_document.max' => 'Supporting document must be smaller than 2MB. Current file is too large. Please compress it and try again.',
+            'supporting_document.file' => 'Supporting document must be a valid file.',
         ];
     }
 

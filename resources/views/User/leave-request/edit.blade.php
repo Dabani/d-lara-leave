@@ -170,49 +170,49 @@
                                 </label>
                             </div>
                         </div>
-
-                        {{-- Medical Certificate Upload --}}
-                        <div id="medical-certificate-section" class="mb-6 hidden">
+                        {{-- Medical Certificate Upload (for Sick Leave) --}}
+                        <div id="medical-certificate-section" class="hidden">
                             <label for="medical_certificate" class="block text-sm font-medium text-gray-700 mb-2">
                                 Medical Certificate <span class="text-red-500">*</span>
+                                <span class="text-xs text-gray-500">(PDF, JPG, PNG, WebP - Max 2MB)</span>
                             </label>
+                            
                             <input type="file" 
                                 name="medical_certificate" 
-                                id="medical_certificate" 
+                                id="medical_certificate"
                                 accept=".pdf,.jpg,.jpeg,.png,.webp"
-                                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                            <p class="text-xs text-gray-500 mt-1">
-                                Required for sick leave. Accepted formats: PDF, JPG, PNG, WebP (Max 2MB)
+                                class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                onchange="validateFileSize(this, 2)">
+                            
+                            <p class="mt-1 text-xs text-gray-500">
+                                ⚠️ File must be under 2MB. If your file is larger, please compress it first.
                             </p>
-                            <div class="mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 text-blue-700 text-xs">
-                                <strong>Important:</strong> Please upload a clear, readable medical certificate from a licensed healthcare provider.
-                            </div>
+                            
                             @error('medical_certificate')
-                                <p class="text-red-500 text-xs mt-2">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
 
-                        {{-- Supporting Document Upload Section --}}
-                        <div id="supporting-document-section" class="mb-6 hidden">
+                        {{-- Supporting Document Upload (for Study Leave) --}}
+                        <div id="supporting-document-section" class="hidden">
                             <label for="supporting_document" class="block text-sm font-medium text-gray-700 mb-2">
                                 Supporting Document <span class="text-red-500">*</span>
+                                <span class="text-xs text-gray-500">(PDF, JPG, PNG, WebP - Max 2MB)</span>
                             </label>
+                            
                             <input type="file" 
                                 name="supporting_document" 
-                                id="supporting_document" 
+                                id="supporting_document"
                                 accept=".pdf,.jpg,.jpeg,.png,.webp"
-                                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                            <p class="text-xs text-gray-500 mt-1">
-                                Required for study leave. Upload exam registration, professional exam notice, or similar documentation.
-                                <br>Accepted formats: PDF, JPG, PNG, WebP (Max 2MB)
+                                class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                onchange="validateFileSize(this, 2)">
+                            
+                            <p class="mt-1 text-xs text-gray-500">
+                                ⚠️ File must be under 2MB. Upload your exam registration or notice.
                             </p>
-                            <div class="mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 text-blue-700 text-xs">
-                                <strong>Note:</strong> Study leave is reserved for professional exams only. 
-                                Please upload official documentation from the exam body or educational institution.
-                                <br><strong>Examples:</strong> Exam registration confirmation, exam timetable, admission letter, professional certification notice.
-                            </div>
+                            
                             @error('supporting_document')
-                                <p class="text-red-500 text-xs mt-2">{{ $message }}</p>
+                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
 
@@ -477,6 +477,23 @@
 
         // Calculate on page load
         calculateDuration();
+        
+        function validateFileSize(input, maxSizeMB) {
+            const file = input.files[0];
+            if (file) {
+                const fileSizeMB = file.size / 1024 / 1024; // Convert to MB
+                
+                if (fileSizeMB > maxSizeMB) {
+                    alert(`File size is ${fileSizeMB.toFixed(2)}MB. Maximum allowed is ${maxSizeMB}MB.\n\nPlease compress your file and try again.`);
+                    input.value = ''; // Clear the file input
+                    return false;
+                }
+                
+                // Show file size
+                console.log(`File size: ${fileSizeMB.toFixed(2)}MB (under ${maxSizeMB}MB limit ✓)`);
+            }
+            return true;
+        }
         
         function runEditAssessment() {
             const leaveType = document.getElementById('leave_type').value;
