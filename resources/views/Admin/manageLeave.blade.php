@@ -497,16 +497,19 @@ function openAdminRejectModal(id) {
                                     @endif
                                 </div>
 
-                                {{-- ADD THIS: Restore Button --}}
+                                {{-- Restore Button --}}
                                 <div class="mt-4 pt-3 border-t border-red-200 no-print">
-                                    <a href="{{ route('admin.restore-leave', $request->id) }}" 
-                                    onclick="return confirm('Are you sure you want to restore this rejected request to pending status?')"
-                                    class="inline-flex items-center justify-center w-full bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm hover:bg-blue-700 transition">
-                                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-                                        </svg>
-                                        Restore to Pending
-                                    </a>
+                                    <form action="{{ route('admin.restore-leave', $request->id) }}" method="POST" class="inline">
+                                        @csrf
+                                        <button type="submit" 
+                                                onclick="return confirm('Restore this leave request to pending status?')"
+                                                class="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700 transition">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                            </svg>
+                                            Restore to Pending
+                                        </button>
+                                    </form>
                                     <p class="text-xs text-gray-500 mt-2 text-center">
                                         This will move the request back to pending status for reconsideration
                                     </p>

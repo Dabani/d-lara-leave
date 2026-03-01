@@ -143,11 +143,14 @@
                                                     class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition">
                                                 Edit
                                             </button>
-                                            <a href="{{ route('admin.block-employee', $employee->id) }}" 
-                                               onclick="return confirm('Are you sure you want to block {{ $employee->user->name }}?')" 
-                                               class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                                                Block
-                                            </a>
+                                            <form action="{{ route('admin.block-employee', $employee->user_id) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit" 
+                                                        onclick="return confirm('Are you sure you want to block this employee?')"
+                                                        class="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700 transition">
+                                                    Block
+                                                </button>
+                                            </form>
                                         </div>
                                     </div>
                                 @endforeach
@@ -208,11 +211,14 @@
                                                     Edit Profile
                                                 </button>
 
-                                                <a href="{{ route('admin.block-employee', $employee->id) }}" 
-                                                   onclick="return confirm('Are you sure you want to block {{ $employee->user->name }}?')" 
-                                                   class="bg-red-500 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded">
-                                                    Block
-                                                </a>
+                                                <form action="{{ route('admin.block-employee', $employee->user_id) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    <button type="submit" 
+                                                            onclick="return confirm('Are you sure you want to block this employee?')"
+                                                            class="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700 transition">
+                                                        Block
+                                                    </button>
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>
@@ -391,12 +397,14 @@
                                             <span class="text-gray-900">{{ $employee->department }}</span>
                                         </div>
                                         <div class="mt-3">
-                                            <a href="{{ route('admin.unblock-employee', $employee->id) }}" 
-                                               onclick="return confirm('Are you sure you want to unblock {{ $employee->user->name }}?')" 
-                                               style="background-color: #68D391" 
-                                               class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition inline-block">
-                                                Unblock
-                                            </a>
+                                            <form action="{{ route('admin.unblock-employee', $employee->user_id) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit" 
+                                                        onclick="return confirm('Unblock this employee?')"
+                                                        class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition">
+                                                    Unblock
+                                                </button>
+                                            </form>
                                         </div>
                                     </div>
                                 @endforeach
@@ -428,12 +436,14 @@
                                         <td class="px-4 py-2">{{ $employee->user->email }}</td>
                                         <td class="px-4 py-2 text-center">{{ $employee->department }}</td>
                                         <td class="px-4 py-2 text-center">
-                                            <a href="{{ route('admin.unblock-employee', $employee->id) }}" 
-                                               onclick="return confirm('Are you sure you want to unblock {{ $employee->user->name }}?')" 
-                                               style="background-color: #68D391" 
-                                               class="text-white font-bold py-2 px-4 rounded hover:opacity-90 transition">
-                                                Unblock
-                                            </a>
+                                            <form action="{{ route('admin.unblock-employee', $employee->user_id) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit" 
+                                                        onclick="return confirm('Unblock this employee?')"
+                                                        class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition">
+                                                    Unblock
+                                                </button>
+                                            </form>
                                         </td>
                                     </tr>
                                 @endforeach

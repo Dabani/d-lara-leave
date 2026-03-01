@@ -117,28 +117,30 @@ class EmployeeController extends Controller
 
     public function blockEmployee($id)
     {
-        $employee = Employee::where('user_id', $id)->first();
-
-        if ($employee) {
+        try {
+            $employee = Employee::where('user_id', $id)->firstOrFail();
             $employee->status = 'blocked';
             $employee->save();
+            
             return redirect()->back()->with('success', 'Employee blocked successfully');
+        } catch (\Exception $e) {
+            \Log::error('Block employee error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to block employee');
         }
-
-        return redirect()->back()->with('error', 'Employee not found');
     }
-
+    
     public function unblockEmployee($id)
     {
-        $employee = Employee::where('user_id', $id)->first();
-
-        if ($employee) {
+        try {
+            $employee = Employee::where('user_id', $id)->firstOrFail();
             $employee->status = 'active';
             $employee->save();
+            
             return redirect()->back()->with('success', 'Employee unblocked successfully');
+        } catch (\Exception $e) {
+            \Log::error('Unblock employee error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to unblock employee');
         }
-
-        return redirect()->back()->with('error', 'Employee not found');
     }
 
     public function updateProfile(Request $request, $id)

@@ -93,8 +93,8 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     // Employee Management
     Route::get('/admin/manage-employee', [EmployeeController::class, 'index'])->name('admin.manage-employee');
     Route::post('/admin/approve-employee/{id}', [EmployeeController::class, 'approveEmployee'])->name('admin.approve-employee');
-    Route::get('/admin/block-employee/{id}', [EmployeeController::class, 'blockEmployee'])->name('admin.block-employee');
-    Route::get('/admin/unblock-employee/{id}', [EmployeeController::class, 'unblockEmployee'])->name('admin.unblock-employee');
+    Route::post('/admin/block-employee/{id}', [EmployeeController::class, 'blockEmployee'])->name('admin.block-employee');
+    Route::post('/admin/unblock-employee/{id}', [EmployeeController::class, 'unblockEmployee'])->name('admin.unblock-employee');
     Route::post('/admin/update-employee-profile/{id}', [EmployeeController::class, 'updateProfile'])->name('admin.update-employee-profile');
     Route::get('/admin/export-employees', [EmployeeController::class, 'exportToExcel'])->name('admin.export-employees');
 
