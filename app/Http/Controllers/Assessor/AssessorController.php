@@ -35,19 +35,19 @@ class AssessorController extends Controller
             // PRIMARY: HOD leave applications awaiting MP approval
             // These are HOD applications that are pending and have no MP decision yet
             $pendingRequests = LeaveRequest::whereHas('employee.user', function($q) {
-                    $q->where('role', 'assessor'); // Only HODs
+                    $q->whereIn('role', ['assessor', 'admin']); // Include admin
                 })
                 ->where('status', 'pending')
-                ->whereNull('mp_status') // No MP decision yet
+                ->whereNull('mp_status')
                 ->with(['employee.user', 'comments.user', 'assessor'])
                 ->latest()
                 ->paginate(10, ['*'], 'pending_page');
-            
-            // HISTORY: All HOD applications MP has reviewed
+
+            // HISTORY: All HOD/ADMIN applications MP has reviewed
             $assessedRequests = LeaveRequest::whereHas('employee.user', function($q) {
-                    $q->where('role', 'assessor');
+                    $q->whereIn('role', ['assessor', 'admin']);
                 })
-                ->where('mp_reviewed_by', $user->id) // Reviewed by this MP
+                ->where('mp_reviewed_by', $user->id)
                 ->with(['employee.user', 'comments.user'])
                 ->latest()
                 ->paginate(10, ['*'], 'assessed_page');
@@ -319,5 +319,58 @@ class AssessorController extends Controller
         }
 
         return redirect()->back()->with('success', 'HOD leave rejected. Applicant notified.');
+    }
+    
+    /**
+     * Managing Partner gives FINAL APPROVAL for Admin leave requests
+     * Unlike HOD applications, Admin applications don't need further approval
+     */
+    public function mpApproveFinal(Request $request, string $id)
+    {
+        $user = auth()->user();
+        abort_unless($user->isManagingPartner(), 403, 'Only Managing Partner can perform this action.');
+
+        $leaveRequest = LeaveRequest::with('employee.user')->findOrFail($id);
+
+        // Verify this is an admin's leave request
+        abort_unless(
+            $leaveRequest->employee->user->role === 'admin',
+            403,
+            'This is not an admin leave request.'
+        );
+
+        // MP approval for admin is FINAL - no further admin approval needed
+        $leaveRequest->mp_status = 'mp_approved';
+        $leaveRequest->status = 'Approved';  // Final approval
+        $leaveRequest->mp_reviewed_by = $user->id;
+        $leaveRequest->mp_reviewed_at = now();
+        $leaveRequest->save();
+
+        if ($request->filled('comment')) {
+            \App\Models\LeaveComment::create([
+                'leave_request_id' => $leaveRequest->id,
+                'user_id' => $user->id,
+                'body' => $request->comment,
+                'type' => 'comment',
+                'visibility' => 'all',
+            ]);
+        }
+
+        // Send approval email to admin
+        try {
+            \Illuminate\Support\Facades\Mail::to($leaveRequest->employee->user->email)
+                ->send(new \App\Mail\LeaveRequestApproved([
+                    'employee_name' => $leaveRequest->employee->user->name,
+                    'leave_type' => $leaveRequest->leave_type,
+                    'leave_from' => $leaveRequest->leave_from,
+                    'leave_to' => $leaveRequest->leave_to,
+                    'duration' => $leaveRequest->working_days_count,
+                ]));
+        } catch (\Exception $e) {
+            \Log::warning('Admin leave approval email failed: ' . $e->getMessage());
+        }
+
+        return redirect()->back()
+            ->with('success', 'Admin leave request approved (final approval).');
     }
 }

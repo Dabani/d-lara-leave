@@ -83,6 +83,9 @@ Route::middleware(['auth', 'verified', 'assessor'])->group(function () {
     // Managing Partner review of HOD applications
     Route::post('/assessor/mp-review/{id}/approve', [AssessorController::class, 'mpApprove'])->name('assessor.mp-approve');
     Route::post('/assessor/mp-review/{id}/reject', [AssessorController::class, 'mpReject'])->name('assessor.mp-reject');
+    // Managing Partner FINAL approval for Admin applications
+    Route::post('/assessor/mp-review/{id}/approve-final', [AssessorController::class, 'mpApproveFinal'])->name('assessor.mp-approve-final');
+    
 });
 
 // ── Admin routes ──────────────────────────────────────────────────────────────

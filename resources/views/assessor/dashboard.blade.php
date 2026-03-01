@@ -11,8 +11,17 @@
                 @endif
             </h2>
 
-            {{-- Quick action buttons for assessors --}}
+            {{-- FIX 5: Added Export Button + Quick action buttons for assessors --}}
             <div class="flex gap-2">
+                {{-- NEW: Export to Excel Button (FIX 5) --}}
+                <a href="{{ route('assessor.export-leave') }}" 
+                   class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-md hover:bg-emerald-700 transition">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Export to Excel
+                </a>
+                
                 {{-- Apply for Leave button - Available to all employees --}}
                 <a href="{{ route('leave-request.create') }}"
                 class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition">
@@ -96,6 +105,12 @@
                                         <span class="ml-2 text-sm text-gray-500">
                                             {{ $request->employee->department }}
                                         </span>
+                                        {{-- FIX 2: Show if this is an ADMIN application --}}
+                                        @if($request->employee->user->role === 'admin')
+                                            <span class="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 text-xs font-bold rounded-full">
+                                                ADMIN
+                                            </span>
+                                        @endif
                                     </div>
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                         {{ $request->leave_type }}
@@ -155,24 +170,45 @@
 
                                 {{-- Action Buttons --}}
                                 <div class="flex flex-col gap-2">
-                                    {{-- Approve Form --}}
-                                    <form action="{{ auth()->user()->isManagingPartner()
-                                            ? route('assessor.mp-approve', $request->id)
-                                            : route('assessor.approve', $request->id) }}"
-                                          method="POST" class="w-full">
-                                        @csrf
-                                        <div class="flex gap-2">
-                                            <input type="text" name="comment"
-                                                   placeholder="Optional comment..."
-                                                   class="flex-1 text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-300">
-                                            <button type="submit"
-                                                    class="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 whitespace-nowrap">
-                                                ✓ Approve
-                                            </button>
-                                        </div>
-                                    </form>
+                                    {{-- FIX 2: Distinguish between Admin applications (final approval) and HOD applications (needs admin after MP) --}}
+                                    @if(auth()->user()->isManagingPartner() && $request->employee->user->role === 'admin')
+                                        {{-- Admin Application - MP gives FINAL approval --}}
+                                        <form action="{{ route('assessor.mp-approve-final', $request->id) }}" method="POST" class="w-full">
+                                            @csrf
+                                            <div class="mb-2 p-2 bg-purple-50 border border-purple-200 rounded text-xs text-purple-800">
+                                                ℹ️ <strong>Admin Leave:</strong> Your approval will be <strong>FINAL</strong> (no further admin approval needed).
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <input type="text" name="comment"
+                                                       placeholder="Optional comment..."
+                                                       class="flex-1 text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-300">
+                                                <button type="submit"
+                                                        onclick="return confirm('Give FINAL APPROVAL to this admin leave request?')"
+                                                        class="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 whitespace-nowrap">
+                                                    ✓ Approve (Final)
+                                                </button>
+                                            </div>
+                                        </form>
+                                    @else
+                                        {{-- Regular Approval (HOD or assessor leave - needs admin after MP) --}}
+                                        <form action="{{ auth()->user()->isManagingPartner()
+                                                ? route('assessor.mp-approve', $request->id)
+                                                : route('assessor.approve', $request->id) }}"
+                                              method="POST" class="w-full">
+                                            @csrf
+                                            <div class="flex gap-2">
+                                                <input type="text" name="comment"
+                                                       placeholder="Optional comment..."
+                                                       class="flex-1 text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-300">
+                                                <button type="submit"
+                                                        class="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 whitespace-nowrap">
+                                                    ✓ Approve
+                                                </button>
+                                            </div>
+                                        </form>
+                                    @endif
 
-                                    {{-- Reject Button (opens modal) --}}
+                                    {{-- Reject Button (opens modal) - Same for all types --}}
                                     <button onclick="openRejectModal('{{ $request->id }}')"
                                             class="w-full px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-md hover:bg-red-700">
                                         ✗ Reject with Reason
@@ -312,7 +348,6 @@
             </div>{{-- End two-column grid --}}
             {{-- ══════════════════════════════════════════════════════════════════════════
                 MANAGING PARTNER ONLY: ORGANIZATIONAL OVERVIEW (FOR INFORMATION)
-                Place this AFTER the two-column grid but BEFORE the closing </div>
                 ══════════════════════════════════════════════════════════════════════════ --}}
 
             @if(auth()->user()->isManagingPartner() && isset($infoRequests) && $infoRequests->count() > 0)
@@ -437,7 +472,7 @@
                         ══════════════════════════════════════════════════════════════════ --}}
                     <div id="mp-content-pending" class="mp-tab-content hidden p-6">
                         <p class="text-sm text-gray-600 mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
-                            ℹ️ <strong>Read-only overview</strong> — These applications are pending assessment by their HODs or awaiting Admin approval.
+                            ℹ️ <strong>Read-only overview</strong> — These applications are currently being assessed by HODs.
                         </p>
 
                         @php
@@ -445,7 +480,6 @@
                         @endphp
 
                         @if($pendingInfo->count() > 0)
-                            {{-- 4-card grid --}}
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 @foreach($pendingInfo as $request)
                                     <div class="border border-yellow-200 bg-yellow-50 rounded-lg p-4 hover:shadow-md transition">
@@ -480,17 +514,6 @@
                                             </div>
                                         </div>
 
-                                        {{-- Current stage --}}
-                                        <div class="text-xs text-gray-600 bg-white rounded p-2 border border-gray-200 mb-2">
-                                            @if($request->assessment_status === 'assessed_approved')
-                                                <span class="font-medium text-teal-700">⏳ Awaiting Admin</span><br>
-                                                <span class="text-gray-500">Assessed by {{ $request->assessor->name ?? 'HOD' }}</span>
-                                            @else
-                                                <span class="font-medium text-yellow-700">⏳ Pending HOD Review</span><br>
-                                                <span class="text-gray-500">Applied {{ $request->created_at->diffForHumans() }}</span>
-                                            @endif
-                                        </div>
-
                                         {{-- Status badge --}}
                                         <div class="mt-3 pt-3 border-t border-yellow-200">
                                             <span class="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">
@@ -501,12 +524,14 @@
                                             </span>
                                         </div>
 
-                                        {{-- Comments indicator --}}
-                                        @if($request->comments->count() > 0)
-                                            <div class="mt-2 text-xs text-gray-500">
-                                                💬 {{ $request->comments->count() }} comment(s)
-                                            </div>
-                                        @endif
+                                        {{-- Assessment status --}}
+                                        <div class="mt-2 text-xs text-gray-600">
+                                            @if($request->assessment_status === null)
+                                                <span class="text-orange-600">⏳ Awaiting HOD</span>
+                                            @elseif($request->assessment_status === 'assessed_approved')
+                                                <span class="text-blue-600">⏳ Awaiting Admin</span>
+                                            @endif
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>
@@ -528,7 +553,6 @@
                         @endphp
 
                         @if($rejectedInfo->count() > 0)
-                            {{-- 4-card grid --}}
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 @foreach($rejectedInfo as $request)
                                     <div class="border border-red-200 bg-red-50 rounded-lg p-4 hover:shadow-md transition">
