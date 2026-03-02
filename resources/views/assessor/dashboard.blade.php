@@ -11,9 +11,9 @@
                 @endif
             </h2>
 
-            {{-- FIX 5: Added Export Button + Quick action buttons for assessors --}}
+            {{-- Export Button + Quick action buttons for assessors --}}
             <div class="flex gap-2">
-                {{-- NEW: Export to Excel Button (FIX 5) --}}
+                {{-- Export to Excel Button --}}
                 <a href="{{ route('assessor.export-leave') }}" 
                    class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-md hover:bg-emerald-700 transition">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,9 +59,8 @@
                 </a>
             </div>
         </div>
-    </x-slot>    
-
-    {{-- Rest of your existing dashboard code remains exactly the same --}}
+    </x-slot>
+    
     <div class="py-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 

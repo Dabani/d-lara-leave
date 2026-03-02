@@ -86,6 +86,9 @@ Route::middleware(['auth', 'verified', 'assessor'])->group(function () {
     // Managing Partner FINAL approval for Admin applications
     Route::post('/assessor/mp-review/{id}/approve-final', [AssessorController::class, 'mpApproveFinal'])->name('assessor.mp-approve-final');
     
+    // Export to Excel
+    Route::get('/assessor/export-leave', [AssessorController::class, 'exportToExcel'])->name('assessor.export-leave');
+    
 });
 
 // ── Admin routes ──────────────────────────────────────────────────────────────

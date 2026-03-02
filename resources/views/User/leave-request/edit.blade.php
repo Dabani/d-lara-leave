@@ -53,7 +53,7 @@
                     <div class="grid grid-cols-3 gap-4 text-sm">
                         <div>
                             <span class="text-gray-600">Days Used:</span>
-                            <span class="font-bold text-indigo-900">{{ $annualLeaveStats['total_days'] }}/18</span>
+                            <span class="font-bold text-indigo-900">{{ $annualLeaveStats['total_days_taken'] }}/{{ $annualLeaveStats['entitlement'] }}</span>
                         </div>
                         <div>
                             <span class="text-gray-600">Remaining:</span>
@@ -61,11 +61,11 @@
                         </div>
                         <div>
                             <span class="text-gray-600">Runs Taken:</span>
-                            <span class="font-bold text-indigo-900">{{ $annualLeaveStats['total_runs'] }}</span>
+                            <span class="font-bold text-indigo-900">{{ $annualLeaveStats['annual_runs_count'] }}</span>
                         </div>
                     </div>
                     <p class="text-xs text-gray-600 mt-2">
-                        <strong>Note:</strong> Annual leave must be split into at least 2 runs, each not exceeding 9 working days.
+                        <strong>Note:</strong> Annual leave must be split into at least 2 runs, each not exceeding {{ $annualLeaveStats['max_days_per_run'] }} working days (based on your years of service).
                     </p>
                 </div>
             @endif
@@ -238,7 +238,7 @@
                                     Leave From <span class="text-red-500">*</span>
                                 </label>
                                 <input type="date" name="leave_from" id="leave_from" required
-                                       value="{{ old('leave_from', $leaveRequest->leave_from) }}"
+                                       value="{{ old('leave_from', $leaveRequest->leave_from->format('Y-m-d')) }}"
                                        class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                                 @error('leave_from')
                                     <p class="text-red-500 text-xs mt-2">{{ $message }}</p>
@@ -250,7 +250,7 @@
                                     Leave To <span class="text-red-500">*</span>
                                 </label>
                                 <input type="date" name="leave_to" id="leave_to" required
-                                       value="{{ old('leave_to', $leaveRequest->leave_to) }}"
+                                       value="{{ old('leave_to', $leaveRequest->leave_to->format('Y-m-d')) }}"
                                        class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                                 @error('leave_to')
                                     <p class="text-red-500 text-xs mt-2">{{ $message }}</p>

@@ -373,4 +373,27 @@ class AssessorController extends Controller
         return redirect()->back()
             ->with('success', 'Admin leave request approved (final approval).');
     }
+    
+    /**
+     * Export leave applications to Excel
+     * MP: All applications
+     * HOD: Only their department
+     */
+    public function exportToExcel(Request $request)
+    {
+        $user = auth()->user();
+        
+        $filename = $user->isManagingPartner() 
+            ? 'all_leave_applications_' . date('Ymd_His') . '.xlsx'
+            : 'leave_applications_' . $user->heads_department . '_' . date('Ymd_His') . '.xlsx';
+
+        return Excel::download(
+            new \App\Exports\AssessorLeaveExport(
+                $user->role,
+                $user->heads_department,
+                $user->id
+            ),
+            $filename
+        );
+    }
 }
