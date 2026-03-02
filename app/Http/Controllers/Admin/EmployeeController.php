@@ -16,6 +16,11 @@ class EmployeeController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
+        
+        // Date range filters
+        $hiredFrom = $request->input('hired_from');
+        $hiredTo = $request->input('hired_to');
+        $departmentFilter = $request->input('department');
     
         // Pending users (not yet approved as employees)
         $pendingUsers = User::whereDoesntHave('employee')
@@ -29,9 +34,16 @@ class EmployeeController extends Controller
             ->select('id', 'name', 'email', 'gender')
             ->latest()
             ->paginate(10, ['*'], 'pending_page')
-            ->appends(['search' => $search, 'active_page' => request('active_page'), 'blocked_page' => request('blocked_page')]);
+            ->appends([
+                'search' => $search,
+                'hired_from' => $hiredFrom,
+                'hired_to' => $hiredTo,
+                'department' => $departmentFilter,
+                'active_page' => request('active_page'),
+                'blocked_page' => request('blocked_page')
+            ]);
     
-        // Active employees
+        // Active employees with date range filters
         $activeEmployees = Employee::with('user')
             ->whereHas('user', function($q) use ($search) {
                 if ($search) {
@@ -42,15 +54,33 @@ class EmployeeController extends Controller
                 }
             })
             ->where('status', 'active')
+            // Hire date filtering
+            ->when($hiredFrom, function($q) use ($hiredFrom) {
+                $q->where('hire_date', '>=', $hiredFrom);
+            })
+            ->when($hiredTo, function($q) use ($hiredTo) {
+                $q->where('hire_date', '<=', $hiredTo);
+            })
+            // Department filtering
+            ->when($departmentFilter, function($q) use ($departmentFilter) {
+                $q->where('department', $departmentFilter);
+            })
             ->when($search, function($q) use ($search) {
                 // Also search in employee-specific fields
                 $q->orWhere('department', 'like', "%{$search}%");
             })
             ->latest()
             ->paginate(10, ['*'], 'active_page')
-            ->appends(['search' => $search, 'pending_page' => request('pending_page'), 'blocked_page' => request('blocked_page')]);
+            ->appends([
+                'search' => $search,
+                'hired_from' => $hiredFrom,
+                'hired_to' => $hiredTo,
+                'department' => $departmentFilter,
+                'pending_page' => request('pending_page'),
+                'blocked_page' => request('blocked_page')
+            ]);
     
-        // Blocked employees
+        // Blocked employees with same filters
         $blockedEmployees = Employee::with('user')
             ->whereHas('user', function($q) use ($search) {
                 if ($search) {
@@ -61,13 +91,31 @@ class EmployeeController extends Controller
                 }
             })
             ->where('status', 'blocked')
+            // Hire date filtering
+            ->when($hiredFrom, function($q) use ($hiredFrom) {
+                $q->where('hire_date', '>=', $hiredFrom);
+            })
+            ->when($hiredTo, function($q) use ($hiredTo) {
+                $q->where('hire_date', '<=', $hiredTo);
+            })
+            // Department filtering
+            ->when($departmentFilter, function($q) use ($departmentFilter) {
+                $q->where('department', $departmentFilter);
+            })
             ->when($search, function($q) use ($search) {
                 // Also search in employee-specific fields
                 $q->orWhere('department', 'like', "%{$search}%");
             })
             ->latest()
             ->paginate(10, ['*'], 'blocked_page')
-            ->appends(['search' => $search, 'pending_page' => request('pending_page'), 'active_page' => request('active_page')]);
+            ->appends([
+                'search' => $search,
+                'hired_from' => $hiredFrom,
+                'hired_to' => $hiredTo,
+                'department' => $departmentFilter,
+                'pending_page' => request('pending_page'),
+                'active_page' => request('active_page')
+            ]);
     
         $departments = Department::all();
     
@@ -117,30 +165,28 @@ class EmployeeController extends Controller
 
     public function blockEmployee($id)
     {
-        try {
-            $employee = Employee::where('user_id', $id)->firstOrFail();
+        $employee = Employee::where('user_id', $id)->first();
+
+        if ($employee) {
             $employee->status = 'blocked';
             $employee->save();
-            
             return redirect()->back()->with('success', 'Employee blocked successfully');
-        } catch (\Exception $e) {
-            \Log::error('Block employee error: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to block employee');
         }
+
+        return redirect()->back()->with('error', 'Employee not found');
     }
-    
+
     public function unblockEmployee($id)
     {
-        try {
-            $employee = Employee::where('user_id', $id)->firstOrFail();
+        $employee = Employee::where('user_id', $id)->first();
+
+        if ($employee) {
             $employee->status = 'active';
             $employee->save();
-            
             return redirect()->back()->with('success', 'Employee unblocked successfully');
-        } catch (\Exception $e) {
-            \Log::error('Unblock employee error: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to unblock employee');
         }
+
+        return redirect()->back()->with('error', 'Employee not found');
     }
 
     public function updateProfile(Request $request, $id)

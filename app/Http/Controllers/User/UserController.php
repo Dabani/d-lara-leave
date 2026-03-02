@@ -47,8 +47,6 @@ class UserController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // PROFILE  (replaces both UserController::profile and
-    //           UserProfileController::index — now always passes all leave data)
     // Route: GET /user/profile  →  name: user.profile
     // Route: GET /my-profile    →  name: my-profile   (legacy alias kept working)
     // Both routes should point here.
@@ -147,18 +145,37 @@ class UserController extends Controller
 
         $yearFilter   = $request->get('year');
         $statusFilter = $request->get('status');
+        $dateFrom     = $request->get('date_from');
+        $dateTo       = $request->get('date_to');
 
         $query = $employee->leaveRequests();
 
-        if ($yearFilter) {
+        // Apply year filter only if no specific date range provided
+        if ($yearFilter && !$dateFrom && !$dateTo) {
             $query->whereYear('leave_from', $yearFilter);
+        }
+
+        // Date range filtering
+        if ($dateFrom) {
+            $query->where('leave_from', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->where('leave_to', '<=', $dateTo);
         }
 
         if ($statusFilter) {
             $query->where('status', $statusFilter);
         }
 
-        $leaveHistory = $query->orderBy('created_at', 'desc')->paginate(10);
+        $leaveHistory = $query->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->appends([
+                'year' => $yearFilter,
+                'status' => $statusFilter,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+            ]);
 
         $years = $employee->leaveRequests()
             ->selectRaw('YEAR(leave_from) as year')
@@ -180,6 +197,8 @@ class UserController extends Controller
             'years',
             'yearFilter',
             'statusFilter',
+            'dateFrom',
+            'dateTo',
             'stats'
         ));
     }

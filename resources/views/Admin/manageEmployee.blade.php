@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center py-2"> <!-- Reduced padding here -->
+        <div class="flex justify-between items-center py-2"> 
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Manage Employee') }}
             </h2>
@@ -26,6 +26,96 @@
             </div>
         </div>
     </x-slot>
+
+    {{-- Date Range Filter for Employee Hire Dates --}}
+    <div class="py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
+                <form method="GET" action="{{ route('admin.manage-employee') }}" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    {{-- Search --}}
+                    <input type="hidden" name="search" value="{{ request('search') }}">
+                    
+                    {{-- Hired From Date --}}
+                    <div>
+                        <label for="hired_from" class="block text-sm font-medium text-gray-700 mb-1">
+                            Hired From
+                        </label>
+                        <input type="date" 
+                               name="hired_from" 
+                               id="hired_from"
+                               value="{{ request('hired_from') }}"
+                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    
+                    {{-- Hired To Date --}}
+                    <div>
+                        <label for="hired_to" class="block text-sm font-medium text-gray-700 mb-1">
+                            Hired To
+                        </label>
+                        <input type="date" 
+                               name="hired_to" 
+                               id="hired_to"
+                               value="{{ request('hired_to') }}"
+                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    
+                    {{-- Department Filter --}}
+                    <div>
+                        <label for="department_filter" class="block text-sm font-medium text-gray-700 mb-1">
+                            Department
+                        </label>
+                        <select name="department" 
+                                id="department_filter"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">All Departments</option>
+                            @foreach($departments as $dept)
+                                <option value="{{ $dept->name }}" {{ request('department') == $dept->name ? 'selected' : '' }}>
+                                    {{ $dept->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    
+                    {{-- Action Buttons --}}
+                    <div class="flex gap-2">
+                        <button type="submit" 
+                                class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition whitespace-nowrap">
+                            🔍 Filter
+                        </button>
+                        
+                        @if(request()->hasAny(['hired_from', 'hired_to', 'department']))
+                            <a href="{{ route('admin.manage-employee') }}?search={{ request('search') }}" 
+                               class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition whitespace-nowrap">
+                                ✕ Clear
+                            </a>
+                        @endif
+                    </div>
+                </form>
+                
+                {{-- Filter Summary --}}
+                @if(request()->hasAny(['hired_from', 'hired_to', 'department']))
+                    <div class="mt-3 text-sm text-gray-600">
+                        <strong>Active Filters:</strong>
+                        @if(request('hired_from'))
+                            <span class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded-full ml-2">
+                                From: {{ \Carbon\Carbon::parse(request('hired_from'))->format('M d, Y') }}
+                            </span>
+                        @endif
+                        @if(request('hired_to'))
+                            <span class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded-full ml-2">
+                                To: {{ \Carbon\Carbon::parse(request('hired_to'))->format('M d, Y') }}
+                            </span>
+                        @endif
+                        @if(request('department'))
+                            <span class="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 rounded-full ml-2">
+                                Dept: {{ request('department') }}
+                            </span>
+                        @endif
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
 
     @if(session('success'))
         <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mx-4 mt-4 sm:mx-auto sm:max-w-7xl" style="background-color: #68D391" role="alert">

@@ -33,16 +33,29 @@ class LeaveManageController extends Controller
         $yearFilter = $request->get('year', date('Y'));
         $search = $request->input('search');
     
+        // NEW: Date range filters
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+    
         // Base query with common filters
         $baseQuery = LeaveRequest::with('employee.user')
-            ->when($departmentFilter, function($q) use ($departmentFilter) {
-                $q->whereHas('employee', function($q2) use ($departmentFilter) {
-                    $q2->where('department', $departmentFilter);
-                });
-            })
-            ->when($yearFilter, function($q) use ($yearFilter) {
-                $q->whereYear('leave_from', $yearFilter);
+        ->when($departmentFilter, function($q) use ($departmentFilter) {
+            $q->whereHas('employee', function($q2) use ($departmentFilter) {
+                $q2->where('department', $departmentFilter);
             });
+        })
+        ->when($yearFilter && !$dateFrom && !$dateTo, function($q) use ($yearFilter) {
+            // Use year filter only if no specific date range provided
+            $q->whereYear('leave_from', $yearFilter);
+        })
+        ->when($dateFrom, function($q) use ($dateFrom) {
+            // Filter by start date
+            $q->where('leave_from', '>=', $dateFrom);
+        })
+        ->when($dateTo, function($q) use ($dateTo) {
+            // Filter by end date
+            $q->where('leave_to', '<=', $dateTo);
+        });
     
         // Pending Leave Requests
         $pendingLeaveRequests = (clone $baseQuery)
@@ -64,7 +77,15 @@ class LeaveManageController extends Controller
             })
             ->latest()
             ->paginate(10, ['*'], 'pending_page')
-            ->appends(['search' => $search, 'department' => $departmentFilter, 'year' => $yearFilter, 'approved_page' => request('approved_page'), 'rejected_page' => request('rejected_page')]);
+            ->appends([
+                'search' => $search, 
+                'department' => $departmentFilter, 
+                'year' => $yearFilter, 
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'approved_page' => request('approved_page'), 
+                'rejected_page' => request('rejected_page')
+            ]);
     
         // Approved Leave Requests
         $approvedLeaveRequests = (clone $baseQuery)

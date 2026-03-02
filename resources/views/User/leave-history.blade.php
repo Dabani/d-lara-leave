@@ -16,6 +16,26 @@
                     </select>
                 </div>
                 
+                {{-- Date From --}}
+                <div>
+                    <input type="date" 
+                           name="date_from" 
+                           id="date_from"
+                           value="{{ $dateFrom ?? '' }}"
+                           placeholder="From Date"
+                           class="text-sm rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                
+                {{-- Date To --}}
+                <div>
+                    <input type="date" 
+                           name="date_to" 
+                           id="date_to"
+                           value="{{ $dateTo ?? '' }}"
+                           placeholder="To Date"
+                           class="text-sm rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                
                 <div>
                     <select name="status" id="status" class="text-sm rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <option value="">All Statuses</option>
@@ -29,7 +49,7 @@
                     Filter
                 </button>
                 
-                @if($yearFilter || $statusFilter)
+                @if($yearFilter || $statusFilter || $dateFrom || $dateTo)
                     <a href="{{ route('leave-history') }}" class="px-3 py-2 bg-gray-200 text-gray-700 text-sm font-semibold rounded-md hover:bg-gray-300 transition">
                         Reset
                     </a>

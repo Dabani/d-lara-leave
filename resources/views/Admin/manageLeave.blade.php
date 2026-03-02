@@ -34,6 +34,55 @@
                         Filter
                     </button>
                 </form>
+                <div class="bg-white shadow rounded-lg p-4 mb-6">
+                    <form method="GET" action="{{ route('admin.manage-leave') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {{-- Search Box --}}
+                        <div>
+                            <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                            <input type="text" 
+                                name="search" 
+                                id="search"
+                                value="{{ request('search') }}"
+                                placeholder="Name, type, department..."
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        
+                        {{-- From Date --}}
+                        <div>
+                            <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                            <input type="date" 
+                                name="date_from" 
+                                id="date_from"
+                                value="{{ request('date_from') }}"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        
+                        {{-- To Date --}}
+                        <div>
+                            <label for="date_to" class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                            <input type="date" 
+                                name="date_to" 
+                                id="date_to"
+                                value="{{ request('date_to') }}"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        
+                        {{-- Action Buttons --}}
+                        <div class="flex items-end gap-2">
+                            <button type="submit" 
+                                    class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">
+                                🔍 Filter
+                            </button>
+                            
+                            @if(request()->hasAny(['search', 'date_from', 'date_to']))
+                                <a href="{{ route('admin.manage-leave') }}" 
+                                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition">
+                                    ✕ Clear
+                                </a>
+                            @endif
+                        </div>
+                    </form>
+                </div>
 
                 <!-- Export Button -->
                 <a href="{{ route('admin.export-leave-requests', ['department' => $departmentFilter, 'year' => $yearFilter]) }}" 
